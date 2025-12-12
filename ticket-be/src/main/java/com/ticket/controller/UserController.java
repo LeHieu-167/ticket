@@ -9,6 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api")
@@ -17,10 +18,6 @@ public class UserController {
     
     private final UserService userService;
 
-    /**
-     * API cho Admin xem tất cả người dùng
-     * GET /api/admin/users
-     */
     @GetMapping("/admin/users")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserResponse>> getAllUsers() {
@@ -28,10 +25,6 @@ public class UserController {
         return ResponseEntity.ok(users);
     }
 
-    /**
-     * API cho người dùng xem thông tin của chính mình
-     * GET /api/users/me
-     */
     @GetMapping("/users/me")
     @PreAuthorize("hasRole('CUSTOMER') or hasRole('ORGANIZER') or hasRole('ADMIN')")
     public ResponseEntity<UserResponse> getCurrentUser(Authentication authentication) {
@@ -40,15 +33,10 @@ public class UserController {
         return ResponseEntity.ok(user);
     }
 
-    /**
-     * API cho Admin xem chi tiết một người dùng cụ thể
-     * GET /api/admin/users/{id}
-     */
     @GetMapping("/admin/users/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserResponse> getUserById(@PathVariable Long id) {
+    public ResponseEntity<UserResponse> getUserById(@PathVariable UUID id) {
         UserResponse user = userService.getUserById(id);
         return ResponseEntity.ok(user);
     }
 }
-

@@ -5,16 +5,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-public interface OrderRepository extends JpaRepository<Order, Long> {
-    // Lấy danh sách đơn hàng của một customer cụ thể
-    List<Order> findByCustomerId(Long customerId);
-    
-    // Lấy danh sách đơn hàng theo event
-    List<Order> findByEventId(Long eventId);
-    
-    // Lấy danh sách đơn hàng của customer với status cụ thể
-    List<Order> findByCustomerIdAndStatus(Long customerId, Order.OrderStatus status);
+public interface OrderRepository extends JpaRepository<Order, UUID> {
+    List<Order> findByCustomerId(UUID customerId);
+    List<Order> findByEventId(UUID eventId);
+    List<Order> findByCustomerIdAndStatus(UUID customerId, Order.OrderStatus status);
+    Optional<Order> findByPaymentTransactionId(String paymentTransactionId);
 }
-

@@ -5,16 +5,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-public interface EventRepository extends JpaRepository<Event, Long> {
-    // Lấy danh sách sự kiện của một organizer cụ thể
-    List<Event> findByOrganizerId(Long organizerId);
-    
-    // Lấy danh sách sự kiện đang hoạt động (công khai)
+public interface EventRepository extends JpaRepository<Event, UUID> {
+    List<Event> findByOrganizerId(UUID organizerId);
     List<Event> findByIsActiveTrue();
-    
-    // Lấy danh sách sự kiện của organizer và đang hoạt động
-    List<Event> findByOrganizerIdAndIsActiveTrue(Long organizerId);
+    List<Event> findByOrganizerIdAndIsActiveTrue(UUID organizerId);
+    Optional<Event> findBySlug(String slug);
+    boolean existsBySlug(String slug);
 }
-

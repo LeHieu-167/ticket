@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "orders")
@@ -14,14 +15,14 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class Order {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(name = "customer_id", nullable = false)
-    private Long customerId;
+    private UUID customerId;
 
     @Column(name = "event_id", nullable = false)
-    private Long eventId;
+    private UUID eventId;
 
     @Column(name = "ticket_quantity", nullable = false)
     private Integer ticketQuantity;
@@ -84,4 +85,3 @@ public class Order {
         REFUNDED      // Đã hoàn tiền
     }
 }
-
