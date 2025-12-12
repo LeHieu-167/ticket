@@ -147,8 +147,10 @@ public class TicketController {
             @PathVariable String ticketCode,
             @AuthenticationPrincipal UserDetails userDetails) {
         log.info("✅ Check-in vé {} bởi {}", ticketCode, userDetails.getUsername());
-        // TODO: Lấy staffId từ userDetails
-        Long staffId = 1L; // Tạm thời
+        
+        // Extract staffId from authenticated user
+        Long staffId = ((com.ticket.security.UserDetailsImpl) userDetails).getId();
+        
         TicketResponse ticket = ticketService.checkInTicket(ticketCode, staffId);
         return ResponseEntity.ok(ticket);
     }
