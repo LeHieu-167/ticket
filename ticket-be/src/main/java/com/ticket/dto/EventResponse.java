@@ -7,25 +7,28 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class EventResponse {
-    private Long id;
+    private UUID id;
+    private String slug;
     private String name;
     private String description;
     private String location;
     private LocalDateTime eventDate;
     private BigDecimal ticketPrice;
     private Integer availableTickets;
-    private Long organizerId;
+    private UUID organizerId;
     private boolean isActive;
     private LocalDateTime createdAt;
 
     public static EventResponse fromEntity(Event event) {
         EventResponse response = new EventResponse();
         response.setId(event.getId());
+        response.setSlug(event.getSlug());
         response.setName(event.getName());
         response.setDescription(event.getDescription());
         response.setLocation(event.getLocation());
@@ -38,4 +41,3 @@ public class EventResponse {
         return response;
     }
 }
-

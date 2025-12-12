@@ -8,10 +8,8 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
-/**
- * DTO trả về thông tin loại vé
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -19,7 +17,7 @@ import java.time.LocalDateTime;
 public class TicketTypeResponse {
 
     private Long id;
-    private Long eventId;
+    private UUID eventId;
     private String eventName;
     private String name;
     private String description;
@@ -27,27 +25,18 @@ public class TicketTypeResponse {
     private Integer totalQuantity;
     private Integer availableQuantity;
     private Integer soldQuantity;
-    
-    // Seating configuration
-    private String seatingType;       // ZONE_ONLY, ZONE_WITH_ROW, FULL_SEAT
+    private String seatingType;
     private String zoneName;
     private String zoneDescription;
     private String rowLabels;
     private Integer seatsPerRow;
     private Boolean allowSeatSelection;
-    
-    // Display
     private String colorCode;
     private Integer displayOrder;
     private Boolean isActive;
-    
-    // Timestamps
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    /**
-     * Chuyển đổi từ Entity sang DTO
-     */
     public static TicketTypeResponse fromEntity(TicketType ticketType) {
         return TicketTypeResponse.builder()
                 .id(ticketType.getId())
@@ -73,4 +62,3 @@ public class TicketTypeResponse {
                 .build();
     }
 }
-

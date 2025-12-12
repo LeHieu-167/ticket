@@ -10,17 +10,26 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
-@Table(name = "events")
+@Table(name = "events", indexes = {
+    @Index(name = "idx_event_slug", columnList = "slug", unique = true)
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Event {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    /**
+     * Slug cho URL đẹp (ví dụ: "concert-son-tung-2024")
+     */
+    @Column(unique = true, nullable = false, length = 255)
+    private String slug;
 
     @Column(nullable = false)
     private String name;
@@ -31,73 +40,42 @@ public class Event {
     @Column(nullable = false)
     private String location;
 
-    /**
-     * Địa chỉ chi tiết của sự kiện
-     */
     @Column(name = "address", columnDefinition = "TEXT")
     private String address;
 
     @Column(name = "event_date", nullable = false)
     private LocalDateTime eventDate;
 
-    /**
-     * Thời gian kết thúc sự kiện
-     */
     @Column(name = "event_end_date")
     private LocalDateTime eventEndDate;
 
-    /**
-     * Giá vé mặc định (giữ lại để backward compatible)
-     * Nên sử dụng TicketType để quản lý giá theo loại vé
-     */
     @Column(name = "ticket_price", nullable = false)
     private BigDecimal ticketPrice;
 
-    /**
-     * Tổng số vé còn lại (tổng hợp từ tất cả TicketType)
-     */
     @Column(name = "available_tickets", nullable = false)
     private Integer availableTickets;
 
-    /**
-     * Tổng số vé ban đầu
-     */
     @Column(name = "total_tickets")
     private Integer totalTickets;
 
     @Column(name = "organizer_id", nullable = false)
-    private Long organizerId;
+    private UUID organizerId;
 
-    /**
-     * Tên đơn vị tổ chức
-     */
     @Column(name = "organizer_name", length = 200)
     private String organizerName;
 
-    /**
-     * URL hình ảnh banner sự kiện
-     */
     @Column(name = "banner_image_url", length = 500)
     private String bannerImageUrl;
 
-    /**
-     * URL hình ảnh thumbnail
-     */
     @Column(name = "thumbnail_url", length = 500)
     private String thumbnailUrl;
 
-    /**
-     * Điều khoản và điều kiện
-     */
     @Column(name = "terms_and_conditions", columnDefinition = "TEXT")
     private String termsAndConditions;
 
     @Column(name = "is_active")
     private boolean isActive = true;
 
-    /**
-     * Danh sách các loại vé của sự kiện
-     */
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<TicketType> ticketTypes = new ArrayList<>();
@@ -115,6 +93,9 @@ public class Event {
         if (totalTickets == null) {
             totalTickets = availableTickets;
         }
+        if (slug == null || slug.isEmpty()) {
+            slug = generateSlug(name);
+        }
     }
 
     @PreUpdate
@@ -123,24 +104,40 @@ public class Event {
     }
 
     /**
-     * Thêm loại vé vào sự kiện
+     * Tạo slug từ tên sự kiện
      */
+    public static String generateSlug(String name) {
+        if (name == null || name.isEmpty()) {
+            return UUID.randomUUID().toString().substring(0, 8);
+        }
+        
+        String slug = name.toLowerCase();
+        slug = slug.replaceAll("[àáạảãâầấậẩẫăằắặẳẵ]", "a");
+        slug = slug.replaceAll("[èéẹẻẽêềếệểễ]", "e");
+        slug = slug.replaceAll("[ìíịỉĩ]", "i");
+        slug = slug.replaceAll("[òóọỏõôồốộổỗơờớợởỡ]", "o");
+        slug = slug.replaceAll("[ùúụủũưừứựửữ]", "u");
+        slug = slug.replaceAll("[ỳýỵỷỹ]", "y");
+        slug = slug.replaceAll("[đ]", "d");
+        slug = slug.replaceAll("[^a-z0-9\\s-]", "");
+        slug = slug.replaceAll("[\\s]+", "-");
+        slug = slug.replaceAll("-+", "-");
+        slug = slug.replaceAll("^-|-$", "");
+        slug = slug + "-" + System.currentTimeMillis() % 100000;
+        
+        return slug;
+    }
+
     public void addTicketType(TicketType ticketType) {
         ticketTypes.add(ticketType);
         ticketType.setEvent(this);
     }
 
-    /**
-     * Xóa loại vé khỏi sự kiện
-     */
     public void removeTicketType(TicketType ticketType) {
         ticketTypes.remove(ticketType);
         ticketType.setEvent(null);
     }
 
-    /**
-     * Tính tổng số vé còn lại từ tất cả loại vé
-     */
     public int calculateTotalAvailableTickets() {
         return ticketTypes.stream()
                 .filter(TicketType::getIsActive)
@@ -148,4 +145,3 @@ public class Event {
                 .sum();
     }
 }
-

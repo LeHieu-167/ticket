@@ -7,14 +7,15 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class OrderResponse {
-    private Long id;
-    private Long customerId;
-    private Long eventId;
+    private UUID id;
+    private UUID customerId;
+    private UUID eventId;
     private Integer ticketQuantity;
     private BigDecimal totalPrice;
     private String status;
@@ -42,4 +43,3 @@ public class OrderResponse {
         return response;
     }
 }
-

@@ -14,6 +14,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api")
@@ -22,24 +23,15 @@ public class EventController {
     
     private final EventService eventService;
 
-    /**
-     * API cho Organizer tạo sự kiện mới
-     * POST /api/events
-     * Logic quan trọng: Lấy ID của organizer từ JWT token
-     */
     @PostMapping("/events")
     @PreAuthorize("hasRole('ORGANIZER')")
     public ResponseEntity<?> createEvent(
             @Valid @RequestBody EventRequest request,
             Authentication authentication) {
         try {
-            // Lấy ID của user hiện tại từ JWT token
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-            Long currentUserId = userDetails.getId();
-            
-            // Tạo sự kiện với organizerId = currentUserId
+            UUID currentUserId = userDetails.getId();
             EventResponse event = eventService.createEvent(request, currentUserId);
-            
             return ResponseEntity.status(HttpStatus.CREATED).body(event);
         } catch (Exception e) {
             return ResponseEntity.badRequest()
@@ -47,41 +39,23 @@ public class EventController {
         }
     }
 
-    /**
-     * API cho Organizer xem danh sách sự kiện của chính họ
-     * GET /api/organizer/my-events
-     * Logic quan trọng: Lọc sự kiện theo organizer_id
-     */
     @GetMapping("/organizer/my-events")
     @PreAuthorize("hasRole('ORGANIZER')")
     public ResponseEntity<List<EventResponse>> getMyEvents(Authentication authentication) {
-        // Lấy ID của user hiện tại từ JWT token
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        Long currentUserId = userDetails.getId();
-        
-        // Lọc sự kiện theo organizer_id
+        UUID currentUserId = userDetails.getId();
         List<EventResponse> events = eventService.getMyEvents(currentUserId);
-        
         return ResponseEntity.ok(events);
     }
 
-    /**
-     * API công khai cho khách hàng xem tất cả sự kiện
-     * GET /api/events
-     * Không cần đăng nhập
-     */
     @GetMapping("/events")
     public ResponseEntity<List<EventResponse>> getAllEvents() {
         List<EventResponse> events = eventService.getAllPublicEvents();
         return ResponseEntity.ok(events);
     }
 
-    /**
-     * API xem chi tiết một sự kiện
-     * GET /api/events/{id}
-     */
     @GetMapping("/events/{id}")
-    public ResponseEntity<?> getEventById(@PathVariable Long id) {
+    public ResponseEntity<?> getEventById(@PathVariable UUID id) {
         try {
             EventResponse event = eventService.getEventById(id);
             return ResponseEntity.ok(event);
@@ -90,5 +64,15 @@ public class EventController {
                     .body(new MessageResponse(e.getMessage()));
         }
     }
+    
+    @GetMapping("/events/slug/{slug}")
+    public ResponseEntity<?> getEventBySlug(@PathVariable String slug) {
+        try {
+            EventResponse event = eventService.getEventBySlug(slug);
+            return ResponseEntity.ok(event);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new MessageResponse(e.getMessage()));
+        }
+    }
 }
-
