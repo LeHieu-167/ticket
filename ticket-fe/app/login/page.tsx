@@ -12,7 +12,8 @@ import {
   Loader2,
   Sparkles,
   Music,
-  Star
+  Star,
+  Shield
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,11 +47,13 @@ export default function LoginPage() {
       
       // Điều hướng theo role
       if (response.roles.includes("ROLE_ORGANIZER")) {
-        router.push("/organizer");
+        router.push("/organizer/dashboard");
       } else if (response.roles.includes("ROLE_ADMIN")) {
-        router.push("/admin");
+        router.push("/admin/dashboard");
       } else {
-        router.push("/public");
+        // CUSTOMER - về trang chủ với header có dropdown tài khoản
+        router.push("/");
+        router.refresh();
       }
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.";
@@ -84,11 +87,11 @@ export default function LoginPage() {
 
         {/* Content */}
         <div className="relative z-10 flex flex-col justify-center px-16 text-white">
-          <Link href="/public" className="flex items-center gap-3 mb-12 group">
+          <Link href="/" className="flex items-center gap-3 mb-12 group">
             <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm group-hover:bg-white/20 transition-all">
               <Ticket className="h-8 w-8" />
             </div>
-            <span className="text-2xl font-bold tracking-tight">TicketSystem</span>
+            <span className="text-2xl font-bold tracking-tight">TicketHub</span>
           </Link>
           
           <h1 className="text-5xl font-bold leading-tight mb-6">
@@ -124,7 +127,7 @@ export default function LoginPage() {
         {/* Header */}
         <header className="p-6 flex items-center justify-between">
           <Link 
-            href="/public" 
+            href="/" 
             className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
@@ -143,7 +146,7 @@ export default function LoginPage() {
             {/* Mobile Logo */}
             <div className="lg:hidden flex items-center gap-2 justify-center mb-8">
               <Ticket className="h-8 w-8 text-indigo-600" />
-              <span className="text-2xl font-bold text-slate-900">TicketSystem</span>
+              <span className="text-2xl font-bold text-slate-900">TicketHub</span>
             </div>
 
             <div className="text-center mb-10">
@@ -283,6 +286,19 @@ export default function LoginPage() {
               </Link>{" "}
               của chúng tôi.
             </p>
+
+            {/* Admin Access */}
+            <div className="mt-8 pt-6 border-t border-slate-200">
+              <Link href="/admin/login">
+                <Button 
+                  variant="outline" 
+                  className="w-full h-11 border-slate-300 text-slate-600 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all"
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  Quản lý hệ thống
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </div>

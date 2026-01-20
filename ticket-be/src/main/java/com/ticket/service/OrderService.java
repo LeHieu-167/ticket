@@ -2,7 +2,6 @@ package com.ticket.service;
 
 import com.ticket.dto.OrderRequest;
 import com.ticket.dto.OrderResponse;
-import com.ticket.dto.OrderStatusResponse;
 import com.ticket.entity.Order;
 import com.ticket.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,23 +24,26 @@ public class OrderService {
     /**
      * Tạo yêu cầu đặt vé (gửi vào Kafka)
      * Đây là entry point cho việc đặt vé
+     * 
+     * Lưu ý: Logic Resumable Queue (idempotency check, Redis marking) 
+     * được xử lý ở OrderController trước khi gọi method này.
      */
-    public OrderStatusResponse createOrderRequest(OrderRequest orderRequest) {
-        log.info("Nhận yêu cầu đặt vé - Customer: {}, Event: {}, Quantity: {}",
-                orderRequest.getCustomerId(), orderRequest.getEventId(), orderRequest.getTicketQuantity());
+    public void createOrderRequest(OrderRequest orderRequest) {
+        log.info("Gửi yêu cầu đặt vé vào Kafka - RequestID: {}, Customer: {}, Event: {}, Quantity: {}",
+                orderRequest.getRequestId(), orderRequest.getCustomerId(), 
+                orderRequest.getEventId(), orderRequest.getTicketQuantity());
 
         // Gửi yêu cầu vào Kafka (bất đồng bộ)
         orderProducerService.sendOrderRequest(orderRequest);
-
-        // Trả về ngay lập tức cho client
-        return OrderStatusResponse.pending();
+        
+        // Response được tạo ở Controller với OrderStatusResponse.queued(requestId)
     }
 
     /**
      * Lấy danh sách đơn hàng của customer
      */
     @Transactional(readOnly = true)
-    public List<OrderResponse> getMyOrders(Long customerId) {
+    public List<OrderResponse> getMyOrders(UUID customerId) {
         List<Order> orders = orderRepository.findByCustomerId(customerId);
         return orders.stream()
                 .map(OrderResponse::fromEntity)
@@ -51,7 +54,7 @@ public class OrderService {
      * Lấy chi tiết một đơn hàng
      */
     @Transactional(readOnly = true)
-    public OrderResponse getOrderById(Long orderId, Long customerId) {
+    public OrderResponse getOrderById(UUID orderId, UUID customerId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId));
 
@@ -78,7 +81,7 @@ public class OrderService {
      * Admin hoặc Organizer: Lấy đơn hàng theo Event
      */
     @Transactional(readOnly = true)
-    public List<OrderResponse> getOrdersByEventId(Long eventId) {
+    public List<OrderResponse> getOrdersByEventId(UUID eventId) {
         List<Order> orders = orderRepository.findByEventId(eventId);
         return orders.stream()
                 .map(OrderResponse::fromEntity)

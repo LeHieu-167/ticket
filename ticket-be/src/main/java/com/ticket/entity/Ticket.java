@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * Entity đại diện cho một vé điện tử chi tiết
@@ -25,8 +26,9 @@ import java.time.LocalDateTime;
 public class Ticket {
     
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(columnDefinition = "VARCHAR(36)")
+    private UUID id;
 
     /**
      * Mã vé duy nhất - dùng để tạo QR Code
@@ -127,10 +129,10 @@ public class Ticket {
     private LocalDateTime checkedInAt;
 
     /**
-     * Người thực hiện check-in (staff ID)
+     * Người thực hiện check-in (staff ID - UUID)
      */
-    @Column(name = "checked_in_by")
-    private Long checkedInBy;
+    @Column(name = "checked_in_by", columnDefinition = "VARCHAR(36)")
+    private UUID checkedInBy;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

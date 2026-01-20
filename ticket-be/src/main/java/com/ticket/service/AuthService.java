@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -95,8 +96,8 @@ public class AuthService {
     @Transactional
     public JwtResponse refreshToken(String refreshToken) {
         // Verify refresh token từ Redis
-        Long userId = refreshTokenService.verifyRefreshToken(refreshToken);
-        
+        UUID userId = refreshTokenService.verifyRefreshToken(refreshToken);
+
         if (userId == null) {
             throw new RuntimeException("Refresh token không hợp lệ hoặc đã hết hạn!");
         }
@@ -143,7 +144,7 @@ public class AuthService {
         if (refreshToken != null) {
             if (logoutAll) {
                 // Logout khỏi tất cả thiết bị: Xóa tất cả refresh token của user
-                Long userId = refreshTokenService.verifyRefreshToken(refreshToken);
+                UUID userId = refreshTokenService.verifyRefreshToken(refreshToken);
                 if (userId != null) {
                     refreshTokenService.deleteAllRefreshTokensOfUser(userId);
                     logger.info("User {} logged out from all devices", userId);

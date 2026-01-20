@@ -29,7 +29,7 @@ export interface LogoutRequest {
 export interface JwtResponse {
   accessToken: string;
   refreshToken: string;
-  id: number;
+  id: string;
   username: string;
   email: string;
   roles: string[];
@@ -137,7 +137,7 @@ export const authService = {
   /**
    * Lấy thông tin user từ localStorage
    */
-  getCurrentUser(): { id: number; username: string; email: string; roles: string[] } | null {
+  getCurrentUser(): { id: string; username: string; email: string; roles: string[] } | null {
     if (typeof window === "undefined") return null;
     
     const userStr = localStorage.getItem("user");

@@ -1,6 +1,6 @@
 package com.ticket.service;
 
-import com.ticket.dto.TicketRequest;
+import com.ticket.dto.CheckInResponse;
 import com.ticket.dto.TicketResponse;
 import com.ticket.dto.TicketTypeRequest;
 import com.ticket.dto.TicketTypeResponse;
@@ -43,11 +43,19 @@ public class TicketService {
 
     /**
      * Tạo loại vé mới cho sự kiện
+     * @param request Thông tin loại vé
+     * @param currentUserId ID của user hiện tại
+     * @param isAdmin User có phải admin không
      */
     @Transactional
-    public TicketTypeResponse createTicketType(TicketTypeRequest request) {
+    public TicketTypeResponse createTicketType(TicketTypeRequest request, UUID currentUserId, boolean isAdmin) {
         Event event = eventRepository.findById(request.getEventId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện với ID: " + request.getEventId()));
+
+        // Kiểm tra quyền sở hữu: Chỉ organizer sở hữu event hoặc admin mới được tạo ticket type
+        if (!isAdmin && !event.getOrganizerId().equals(currentUserId)) {
+            throw new RuntimeException("Bạn không có quyền tạo loại vé cho sự kiện này!");
+        }
 
         // Kiểm tra trùng tên loại vé trong cùng sự kiện
         if (ticketTypeRepository.findByEventIdAndName(request.getEventId(), request.getName()).isPresent()) {
@@ -60,7 +68,7 @@ public class TicketService {
             try {
                 seatingType = TicketType.SeatingType.valueOf(request.getSeatingType());
             } catch (IllegalArgumentException e) {
-                log.warn("⚠️ SeatingType không hợp lệ '{}', sử dụng mặc định ZONE_ONLY", request.getSeatingType());
+                log.warn("SeatingType không hợp lệ '{}', sử dụng mặc định ZONE_ONLY", request.getSeatingType());
             }
         }
 
@@ -90,7 +98,7 @@ public class TicketService {
         // Cập nhật tổng số vé của sự kiện
         updateEventTotalTickets(event.getId());
 
-        log.info("✅ Đã tạo loại vé '{}' (seatingType={}) cho sự kiện '{}'", 
+        log.info("Đã tạo loại vé '{}' (seatingType={}) cho sự kiện '{}'", 
                 ticketType.getName(), seatingType, event.getName());
         return TicketTypeResponse.fromEntity(ticketType);
     }
@@ -123,7 +131,7 @@ public class TicketService {
     /**
      * Lấy danh sách loại vé của sự kiện
      */
-    public List<TicketTypeResponse> getTicketTypesByEvent(Long eventId) {
+    public List<TicketTypeResponse> getTicketTypesByEvent(UUID eventId) {
         return ticketTypeRepository.findByEventIdAndIsActiveTrueOrderByDisplayOrderAsc(eventId)
                 .stream()
                 .map(TicketTypeResponse::fromEntity)
@@ -133,7 +141,7 @@ public class TicketService {
     /**
      * Lấy loại vé còn vé khả dụng
      */
-    public List<TicketTypeResponse> getAvailableTicketTypes(Long eventId) {
+    public List<TicketTypeResponse> getAvailableTicketTypes(UUID eventId) {
         return ticketTypeRepository.findAvailableByEventId(eventId)
                 .stream()
                 .map(TicketTypeResponse::fromEntity)
@@ -147,7 +155,7 @@ public class TicketService {
      * Được gọi từ OrderService hoặc PaymentService
      */
     @Transactional
-    public List<TicketResponse> generateTicketsForOrder(Long orderId) {
+    public List<TicketResponse> generateTicketsForOrder(UUID orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId));
 
@@ -159,7 +167,7 @@ public class TicketService {
         // Kiểm tra đã tạo vé chưa
         List<Ticket> existingTickets = ticketRepository.findByOrderId(orderId);
         if (!existingTickets.isEmpty()) {
-            log.warn("⚠️ Đơn hàng {} đã có vé, trả về vé hiện có", orderId);
+            log.warn("Đơn hàng {} đã có vé, trả về vé hiện có", orderId);
             return existingTickets.stream()
                     .map(this::convertToResponse)
                     .collect(Collectors.toList());
@@ -184,7 +192,7 @@ public class TicketService {
         }
 
         tickets = ticketRepository.saveAll(tickets);
-        log.info("✅ Đã tạo {} vé cho đơn hàng {}", tickets.size(), orderId);
+        log.info("Đã tạo {} vé cho đơn hàng {}", tickets.size(), orderId);
 
         return tickets.stream()
                 .map(this::convertToResponse)
@@ -277,10 +285,10 @@ public class TicketService {
      * Sinh mã vé duy nhất
      * Format: E{eventId}O{orderId}T{timestamp}S{sequence}
      */
-    private String generateTicketCode(Long eventId, Long orderId, int sequence) {
+    private String generateTicketCode(UUID eventId, UUID orderId, int sequence) {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         String uuid = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        return String.format("E%dO%dT%sS%d%s", eventId, orderId, timestamp, sequence, uuid);
+        return String.format("E%sO%sT%sS%d%s", eventId.toString().substring(0, 8), orderId.toString().substring(0, 8), timestamp, sequence, uuid);
     }
 
     // ==================== TICKET RETRIEVAL ====================
@@ -288,7 +296,7 @@ public class TicketService {
     /**
      * Lấy thông tin vé theo ID
      */
-    public TicketResponse getTicketById(Long ticketId) {
+    public TicketResponse getTicketById(UUID ticketId) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy vé với ID: " + ticketId));
         return convertToResponse(ticket);
@@ -306,7 +314,7 @@ public class TicketService {
     /**
      * Lấy danh sách vé của đơn hàng
      */
-    public List<TicketResponse> getTicketsByOrder(Long orderId) {
+    public List<TicketResponse> getTicketsByOrder(UUID orderId) {
         return ticketRepository.findByOrderId(orderId)
                 .stream()
                 .map(this::convertToResponse)
@@ -316,7 +324,7 @@ public class TicketService {
     /**
      * Lấy danh sách vé của khách hàng
      */
-    public List<TicketResponse> getTicketsByCustomer(Long customerId) {
+    public List<TicketResponse> getTicketsByCustomer(UUID customerId) {
         return ticketRepository.findByCustomerId(customerId)
                 .stream()
                 .map(this::convertToResponse)
@@ -326,7 +334,7 @@ public class TicketService {
     /**
      * Lấy danh sách vé của khách hàng cho một sự kiện
      */
-    public List<TicketResponse> getTicketsByCustomerAndEvent(Long customerId, Long eventId) {
+    public List<TicketResponse> getTicketsByCustomerAndEvent(UUID customerId, UUID eventId) {
         return ticketRepository.findByCustomerIdAndEventId(customerId, eventId)
                 .stream()
                 .map(this::convertToResponse)
@@ -339,7 +347,7 @@ public class TicketService {
      * Check-in vé (quét QR tại sự kiện)
      */
     @Transactional
-    public TicketResponse checkInTicket(String ticketCode, Long staffId) {
+    public TicketResponse checkInTicket(String ticketCode, UUID staffId) {
         Ticket ticket = ticketRepository.findByTicketCode(ticketCode)
                 .orElseThrow(() -> new RuntimeException("Mã vé không hợp lệ: " + ticketCode));
 
@@ -365,9 +373,53 @@ public class TicketService {
         ticket.setCheckedInBy(staffId);
 
         ticket = ticketRepository.save(ticket);
-        log.info("✅ Check-in thành công vé {} cho sự kiện {}", ticketCode, ticket.getEvent().getName());
+        log.info("Check-in thành công vé {} cho sự kiện {}", ticketCode, ticket.getEvent().getName());
 
         return convertToResponse(ticket);
+    }
+
+    /**
+     * Check-in vé và trả về CheckInResponse
+     */
+    @Transactional
+    public CheckInResponse checkInTicketWithResponse(String ticketCode, UUID staffId) {
+        Ticket ticket = ticketRepository.findByTicketCode(ticketCode)
+                .orElseThrow(() -> new RuntimeException("Mã vé không hợp lệ: " + ticketCode));
+
+        // Kiểm tra trạng thái vé
+        if (ticket.getStatus() == Ticket.TicketStatus.USED) {
+            return CheckInResponse.failure(
+                "Vé đã được sử dụng lúc: " + ticket.getCheckedInAt(),
+                ticket
+            );
+        }
+
+        if (ticket.getStatus() != Ticket.TicketStatus.ACTIVE) {
+            return CheckInResponse.failure(
+                "Vé không hợp lệ. Trạng thái hiện tại: " + ticket.getStatus(),
+                ticket
+            );
+        }
+
+        // Kiểm tra sự kiện đã bắt đầu chưa (cho phép check-in trước 2 giờ)
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime eventDate = ticket.getEvent().getEventDate();
+        if (now.isBefore(eventDate.minusHours(2))) {
+            return CheckInResponse.failure(
+                "Chưa đến thời gian check-in. Sự kiện bắt đầu lúc: " + eventDate,
+                ticket
+            );
+        }
+
+        // Cập nhật trạng thái
+        ticket.setStatus(Ticket.TicketStatus.USED);
+        ticket.setCheckedInAt(now);
+        ticket.setCheckedInBy(staffId);
+
+        ticket = ticketRepository.save(ticket);
+        log.info("Check-in thành công vé {} cho sự kiện {}", ticketCode, ticket.getEvent().getName());
+
+        return CheckInResponse.success(ticket, "Check-in thành công!");
     }
 
     /**
@@ -385,7 +437,7 @@ public class TicketService {
      * Hủy vé
      */
     @Transactional
-    public TicketResponse cancelTicket(Long ticketId, String reason) {
+    public TicketResponse cancelTicket(UUID ticketId, String reason) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy vé"));
 
@@ -408,7 +460,7 @@ public class TicketService {
         // Cập nhật tổng số vé sự kiện
         updateEventTotalTickets(ticket.getEvent().getId());
 
-        log.info("✅ Đã hủy vé {} với lý do: {}", ticket.getTicketCode(), reason);
+        log.info("Đã hủy vé {} với lý do: {}", ticket.getTicketCode(), reason);
         return convertToResponse(ticket);
     }
 
@@ -417,7 +469,7 @@ public class TicketService {
     /**
      * Thống kê vé của sự kiện
      */
-    public TicketStatistics getEventTicketStatistics(Long eventId) {
+    public TicketStatistics getEventTicketStatistics(UUID eventId) {
         Long totalActive = ticketRepository.countActiveByEventId(eventId);
         Long totalCheckedIn = ticketRepository.countCheckedInByEventId(eventId);
         Integer totalAvailable = ticketTypeRepository.sumAvailableQuantityByEventId(eventId);
@@ -446,7 +498,7 @@ public class TicketService {
     /**
      * Cập nhật tổng số vé của sự kiện
      */
-    private void updateEventTotalTickets(Long eventId) {
+    private void updateEventTotalTickets(UUID eventId) {
         Event event = eventRepository.findById(eventId).orElse(null);
         if (event != null) {
             Integer totalAvailable = ticketTypeRepository.sumAvailableQuantityByEventId(eventId);
@@ -465,7 +517,7 @@ public class TicketService {
     @lombok.NoArgsConstructor
     @lombok.AllArgsConstructor
     public static class TicketStatistics {
-        private Long eventId;
+        private UUID eventId;
         private Integer totalTickets;
         private Integer soldTickets;
         private Integer availableTickets;

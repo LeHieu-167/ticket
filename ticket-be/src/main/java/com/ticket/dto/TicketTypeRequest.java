@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 /**
  * DTO cho yêu cầu tạo/cập nhật loại vé
@@ -24,8 +25,7 @@ import java.math.BigDecimal;
 @Builder
 public class TicketTypeRequest {
 
-    @NotNull(message = "ID sự kiện không được để trống")
-    private Long eventId;
+    private UUID eventId;
 
     @NotBlank(message = "Tên loại vé không được để trống")
     private String name;
@@ -49,10 +49,9 @@ public class TicketTypeRequest {
     private String seatingType;
 
     /**
-     * Tên khu vực (bắt buộc)
+     * Tên khu vực
      * Ví dụ: "VIP Zone", "General Admission", "Khu A", "Sân khấu chính"
      */
-    @NotBlank(message = "Tên khu vực không được để trống")
     private String zoneName;
 
     /**

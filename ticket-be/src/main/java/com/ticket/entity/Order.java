@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "orders")
@@ -14,14 +15,15 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class Order {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(columnDefinition = "VARCHAR(36)")
+    private UUID id;
 
-    @Column(name = "customer_id", nullable = false)
-    private Long customerId;
+    @Column(name = "customer_id", nullable = false, columnDefinition = "VARCHAR(36)")
+    private UUID customerId;
 
-    @Column(name = "event_id", nullable = false)
-    private Long eventId;
+    @Column(name = "event_id", nullable = false, columnDefinition = "VARCHAR(36)")
+    private UUID eventId;
 
     @Column(name = "ticket_quantity", nullable = false)
     private Integer ticketQuantity;
@@ -53,6 +55,13 @@ public class Order {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    /**
+     * Thời điểm hết hạn giữ vé (Booking Session Timeout)
+     * Sau thời điểm này, đơn hàng PENDING sẽ tự động bị hủy và vé được nhả ra
+     */
+    @Column(name = "expired_at")
+    private LocalDateTime expiredAt;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -62,6 +71,10 @@ public class Order {
         }
         if (paymentStatus == null) {
             paymentStatus = PaymentStatus.PENDING;
+        }
+        // Mặc định: 15 phút để thanh toán
+        if (expiredAt == null) {
+            expiredAt = LocalDateTime.now().plusMinutes(15);
         }
     }
 
@@ -74,7 +87,9 @@ public class Order {
         PENDING,      // Đang chờ xử lý
         PROCESSING,   // Đang xử lý
         CONFIRMED,    // Đã xác nhận (có vé nhưng chưa thanh toán)
-        FAILED        // Thất bại (hết vé hoặc lỗi)
+        FAILED,       // Thất bại (hết vé hoặc lỗi)
+        EXPIRED,      // Hết hạn giữ vé (Booking Session Timeout)
+        CANCELLED     // Đã hủy
     }
 
     public enum PaymentStatus {

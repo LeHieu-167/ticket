@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 /**
  * DTO cho yêu cầu tạo vé
  */
@@ -17,7 +19,7 @@ import lombok.NoArgsConstructor;
 public class TicketRequest {
 
     @NotNull(message = "ID sự kiện không được để trống")
-    private Long eventId;
+    private UUID eventId;
 
     @NotNull(message = "ID loại vé không được để trống")
     private Long ticketTypeId;

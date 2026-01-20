@@ -1,6 +1,7 @@
 package com.ticket.controller;
 
 import com.ticket.dto.*;
+import com.ticket.security.UserDetailsImpl;
 import com.ticket.service.QRCodeService;
 import com.ticket.service.TicketService;
 import jakarta.validation.Valid;
@@ -16,6 +17,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Controller quản lý vé điện tử
@@ -33,13 +35,26 @@ public class TicketController {
 
     /**
      * Tạo loại vé mới cho sự kiện
-     * Chỉ ADMIN hoặc ORGANIZER mới có quyền
+
+     * Chỉ ADMIN hoặc ORGANIZER (sở hữu event) mới có quyền
      */
     @PostMapping("/types")
     @PreAuthorize("hasAnyRole('ADMIN', 'ORGANIZER')")
-    public ResponseEntity<TicketTypeResponse> createTicketType(@Valid @RequestBody TicketTypeRequest request) {
+    public ResponseEntity<TicketTypeResponse> createTicketType(
+            @Valid @RequestBody TicketTypeRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
         log.info("📝 Tạo loại vé mới cho sự kiện {}", request.getEventId());
-        TicketTypeResponse response = ticketService.createTicketType(request);
+
+        // Lấy thông tin user hiện tại
+        UUID currentUserId = null;
+        boolean isAdmin = false;
+        if (userDetails instanceof UserDetailsImpl) {
+            currentUserId = ((UserDetailsImpl) userDetails).getId();
+            isAdmin = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        }
+
+        TicketTypeResponse response = ticketService.createTicketType(request, currentUserId, isAdmin);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -47,7 +62,7 @@ public class TicketController {
      * Lấy danh sách loại vé của sự kiện
      */
     @GetMapping("/types/event/{eventId}")
-    public ResponseEntity<List<TicketTypeResponse>> getTicketTypesByEvent(@PathVariable Long eventId) {
+    public ResponseEntity<List<TicketTypeResponse>> getTicketTypesByEvent(@PathVariable UUID eventId) {
         List<TicketTypeResponse> ticketTypes = ticketService.getTicketTypesByEvent(eventId);
         return ResponseEntity.ok(ticketTypes);
     }
@@ -56,7 +71,7 @@ public class TicketController {
      * Lấy danh sách loại vé còn khả dụng của sự kiện
      */
     @GetMapping("/types/event/{eventId}/available")
-    public ResponseEntity<List<TicketTypeResponse>> getAvailableTicketTypes(@PathVariable Long eventId) {
+    public ResponseEntity<List<TicketTypeResponse>> getAvailableTicketTypes(@PathVariable UUID eventId) {
         List<TicketTypeResponse> ticketTypes = ticketService.getAvailableTicketTypes(eventId);
         return ResponseEntity.ok(ticketTypes);
     }
@@ -69,7 +84,7 @@ public class TicketController {
      */
     @PostMapping("/generate/{orderId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<TicketResponse>> generateTickets(@PathVariable Long orderId) {
+    public ResponseEntity<List<TicketResponse>> generateTickets(@PathVariable UUID orderId) {
         log.info("🎫 Tạo vé cho đơn hàng {}", orderId);
         List<TicketResponse> tickets = ticketService.generateTicketsForOrder(orderId);
         return ResponseEntity.status(HttpStatus.CREATED).body(tickets);
@@ -79,7 +94,7 @@ public class TicketController {
      * Lấy thông tin vé theo ID
      */
     @GetMapping("/{ticketId}")
-    public ResponseEntity<TicketResponse> getTicketById(@PathVariable Long ticketId) {
+    public ResponseEntity<TicketResponse> getTicketById(@PathVariable UUID ticketId) {
         TicketResponse ticket = ticketService.getTicketById(ticketId);
         return ResponseEntity.ok(ticket);
     }
@@ -97,7 +112,7 @@ public class TicketController {
      * Lấy danh sách vé của đơn hàng
      */
     @GetMapping("/order/{orderId}")
-    public ResponseEntity<List<TicketResponse>> getTicketsByOrder(@PathVariable Long orderId) {
+    public ResponseEntity<List<TicketResponse>> getTicketsByOrder(@PathVariable UUID orderId) {
         List<TicketResponse> tickets = ticketService.getTicketsByOrder(orderId);
         return ResponseEntity.ok(tickets);
     }
@@ -106,22 +121,48 @@ public class TicketController {
      * Lấy danh sách vé của người dùng hiện tại
      */
     @GetMapping("/my-tickets")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<List<TicketResponse>> getMyTickets(@AuthenticationPrincipal UserDetails userDetails) {
-        // TODO: Lấy customerId từ userDetails
-        // Tạm thời trả về empty list
         log.info("📋 Lấy danh sách vé của user: {}", userDetails.getUsername());
-        return ResponseEntity.ok(List.of());
+        
+        // Lấy customerId từ UserDetailsImpl
+        UUID customerId = null;
+        if (userDetails instanceof UserDetailsImpl) {
+            customerId = ((UserDetailsImpl) userDetails).getId();
+        }
+        
+        if (customerId == null) {
+            log.warn("⚠️ Không thể lấy customerId từ userDetails");
+            return ResponseEntity.ok(List.of());
+        }
+        
+        List<TicketResponse> tickets = ticketService.getTicketsByCustomer(customerId);
+        log.info("📋 Tìm thấy {} vé cho user {}", tickets.size(), userDetails.getUsername());
+        return ResponseEntity.ok(tickets);
     }
 
     /**
      * Lấy danh sách vé của người dùng cho một sự kiện
      */
     @GetMapping("/my-tickets/event/{eventId}")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<List<TicketResponse>> getMyTicketsForEvent(
-            @PathVariable Long eventId,
+            @PathVariable UUID eventId,
             @AuthenticationPrincipal UserDetails userDetails) {
         log.info("📋 Lấy danh sách vé của user {} cho sự kiện {}", userDetails.getUsername(), eventId);
-        return ResponseEntity.ok(List.of());
+        
+        // Lấy customerId từ UserDetailsImpl
+        UUID customerId = null;
+        if (userDetails instanceof UserDetailsImpl) {
+            customerId = ((UserDetailsImpl) userDetails).getId();
+        }
+        
+        if (customerId == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        
+        List<TicketResponse> tickets = ticketService.getTicketsByCustomerAndEvent(customerId, eventId);
+        return ResponseEntity.ok(tickets);
     }
 
     // ==================== CHECK-IN ENDPOINTS ====================
@@ -139,18 +180,29 @@ public class TicketController {
 
     /**
      * Check-in vé tại sự kiện
-     * Chỉ ADMIN hoặc STAFF mới có quyền
+     * Chỉ ADMIN hoặc ORGANIZER mới có quyền
      */
     @PostMapping("/check-in/{ticketCode}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-    public ResponseEntity<TicketResponse> checkInTicket(
+    @PreAuthorize("hasAnyRole('ADMIN', 'ORGANIZER')")
+    public ResponseEntity<CheckInResponse> checkInTicket(
             @PathVariable String ticketCode,
             @AuthenticationPrincipal UserDetails userDetails) {
-        log.info("✅ Check-in vé {} bởi {}", ticketCode, userDetails.getUsername());
-        // TODO: Lấy staffId từ userDetails
-        Long staffId = 1L; // Tạm thời
-        TicketResponse ticket = ticketService.checkInTicket(ticketCode, staffId);
-        return ResponseEntity.ok(ticket);
+        log.info("Check-in vé {} bởi {}", ticketCode, userDetails.getUsername());
+        
+        try {
+            // Lấy staffId từ UserDetailsImpl (UUID)
+            UUID staffId = null;
+            if (userDetails instanceof UserDetailsImpl) {
+                staffId = ((UserDetailsImpl) userDetails).getId();
+            }
+            
+            CheckInResponse response = ticketService.checkInTicketWithResponse(ticketCode, staffId);
+            return ResponseEntity.ok(response);
+            
+        } catch (RuntimeException e) {
+            log.warn("❌ Check-in thất bại cho vé {}: {}", ticketCode, e.getMessage());
+            return ResponseEntity.ok(CheckInResponse.failure(e.getMessage()));
+        }
     }
 
     // ==================== QR CODE ENDPOINTS ====================
@@ -187,9 +239,9 @@ public class TicketController {
     @PostMapping("/{ticketId}/cancel")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<TicketResponse> cancelTicket(
-            @PathVariable Long ticketId,
+            @PathVariable UUID ticketId,
             @RequestParam(required = false, defaultValue = "Yêu cầu hủy từ admin") String reason) {
-        log.info("❌ Hủy vé {} với lý do: {}", ticketId, reason);
+        log.info("Hủy vé {} với lý do: {}", ticketId, reason);
         TicketResponse ticket = ticketService.cancelTicket(ticketId, reason);
         return ResponseEntity.ok(ticket);
     }
@@ -202,7 +254,7 @@ public class TicketController {
      */
     @GetMapping("/statistics/event/{eventId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'ORGANIZER')")
-    public ResponseEntity<TicketService.TicketStatistics> getEventStatistics(@PathVariable Long eventId) {
+    public ResponseEntity<TicketService.TicketStatistics> getEventStatistics(@PathVariable UUID eventId) {
         log.info("📊 Lấy thống kê vé cho sự kiện {}", eventId);
         TicketService.TicketStatistics statistics = ticketService.getEventTicketStatistics(eventId);
         return ResponseEntity.ok(statistics);

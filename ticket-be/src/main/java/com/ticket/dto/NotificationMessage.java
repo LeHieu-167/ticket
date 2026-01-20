@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @NoArgsConstructor
@@ -17,7 +18,7 @@ public class NotificationMessage {
     private LocalDateTime timestamp;
     private String severity; // INFO, SUCCESS, WARNING, ERROR
 
-    public static NotificationMessage orderProcessed(Long orderId, String status, String message) {
+    public static NotificationMessage orderProcessed(UUID orderId, String status, String message) {
         NotificationMessage notification = new NotificationMessage();
         notification.setType("ORDER");
         notification.setTitle("Cập nhật đơn hàng");
@@ -28,7 +29,7 @@ public class NotificationMessage {
         return notification;
     }
 
-    public static NotificationMessage paymentCompleted(Long orderId, boolean success, String message) {
+    public static NotificationMessage paymentCompleted(UUID orderId, boolean success, String message) {
         NotificationMessage notification = new NotificationMessage();
         notification.setType("PAYMENT");
         notification.setTitle(success ? "Thanh toán thành công" : "Thanh toán thất bại");
@@ -39,7 +40,7 @@ public class NotificationMessage {
         return notification;
     }
 
-    public static NotificationMessage eventUpdate(Long eventId, String title, String message) {
+    public static NotificationMessage eventUpdate(UUID eventId, String title, String message) {
         NotificationMessage notification = new NotificationMessage();
         notification.setType("EVENT");
         notification.setTitle(title);

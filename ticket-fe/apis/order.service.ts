@@ -22,7 +22,7 @@ export interface OrderRequest {
    * Dùng cho cơ chế Resumable Queue
    */
   requestId: string;
-  eventId: number;
+  eventId: string;
   ticketQuantity: number;
 }
 
@@ -33,17 +33,18 @@ export interface OrderStatusResponse {
   requestId: string;
   status: QueueStatus;
   message: string;
-  orderId?: number;
+  orderId?: string;
   isNewRequest: boolean;
+  expiredAt?: string;
 }
 
 /**
  * Response chi tiết đơn hàng
  */
 export interface OrderResponse {
-  id: number;
-  customerId: number;
-  eventId: number;
+  id: string;
+  customerId: string;
+  eventId: string;
   ticketQuantity: number;
   totalPrice: number;
   status: string;
@@ -53,6 +54,7 @@ export interface OrderResponse {
   paymentTime?: string;
   createdAt: string;
   updatedAt?: string;
+  expiredAt?: string;
 }
 
 // ==================== CONSTANTS ====================
@@ -67,7 +69,7 @@ const PENDING_REQUEST_KEY = "ticket_pending_request";
  */
 interface PendingRequestData {
   requestId: string;
-  eventId: number;
+  eventId: string;
   ticketQuantity: number;
   createdAt: number; // timestamp
 }
@@ -178,7 +180,7 @@ export const orderService = {
    * @returns OrderStatusResponse
    */
   async createOrder(
-    eventId: number,
+    eventId: string,
     ticketQuantity: number
   ): Promise<OrderStatusResponse> {
     // 1. Kiểm tra pending request
@@ -221,7 +223,7 @@ export const orderService = {
    * Tạo request đặt vé mới (internal)
    */
   async createNewOrder(
-    eventId: number,
+    eventId: string,
     ticketQuantity: number
   ): Promise<OrderStatusResponse> {
     const requestId = generateUUID();
@@ -329,7 +331,7 @@ export const orderService = {
   /**
    * Lấy chi tiết một đơn hàng
    */
-  async getOrderById(id: number): Promise<OrderResponse> {
+  async getOrderById(id: string): Promise<OrderResponse> {
     const response = await api.get<OrderResponse>(`/api/orders/${id}`);
     return response.data;
   },

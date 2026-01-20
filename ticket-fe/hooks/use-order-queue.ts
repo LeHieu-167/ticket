@@ -16,7 +16,7 @@ interface UseOrderQueueState {
   /** Thông báo từ server */
   message: string | null;
   /** Order ID nếu đã tạo thành công */
-  orderId: number | null;
+  orderId: string | null;
   /** Request ID hiện tại */
   requestId: string | null;
   /** Đang loading (gọi API) */
@@ -32,7 +32,7 @@ interface UseOrderQueueState {
  */
 interface UseOrderQueueResult extends UseOrderQueueState {
   /** Đặt vé mới */
-  placeOrder: (eventId: number, ticketQuantity: number) => Promise<void>;
+  placeOrder: (eventId: string, ticketQuantity: number) => Promise<void>;
   /** Hủy đơn hàng đang chờ */
   cancelOrder: () => Promise<void>;
   /** Kiểm tra trạng thái thủ công */
@@ -50,7 +50,7 @@ interface UseOrderQueueOptions {
   /** Interval polling (ms) - mặc định: 3000ms */
   pollingInterval?: number;
   /** Callback khi đặt vé thành công */
-  onSuccess?: (orderId: number) => void;
+  onSuccess?: (orderId: string) => void;
   /** Callback khi đặt vé thất bại */
   onFailed?: (message: string) => void;
   /** Callback khi có lỗi */
@@ -194,7 +194,7 @@ export function useOrderQueue(
    * Đặt vé
    */
   const placeOrder = useCallback(
-    async (eventId: number, ticketQuantity: number) => {
+    async (eventId: string, ticketQuantity: number) => {
       if (!mountedRef.current) return;
 
       setState((prev) => ({ ...prev, isLoading: true, error: null }));

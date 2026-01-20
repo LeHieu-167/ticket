@@ -125,11 +125,11 @@ export default function RegisterPage() {
 
         {/* Content */}
         <div className="relative z-10 flex flex-col justify-center px-16 text-white">
-          <Link href="/public" className="flex items-center gap-3 mb-12 group">
+          <Link href="/" className="flex items-center gap-3 mb-12 group">
             <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm group-hover:bg-white/20 transition-all">
               <Ticket className="h-8 w-8" />
             </div>
-            <span className="text-2xl font-bold tracking-tight">TicketSystem</span>
+            <span className="text-2xl font-bold tracking-tight">TicketHub</span>
           </Link>
           
           <h1 className="text-5xl font-bold leading-tight mb-6">
@@ -171,7 +171,7 @@ export default function RegisterPage() {
         {/* Header */}
         <header className="p-6 flex items-center justify-between">
           <Link 
-            href="/public" 
+            href="/" 
             className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
@@ -190,7 +190,7 @@ export default function RegisterPage() {
             {/* Mobile Logo */}
             <div className="lg:hidden flex items-center gap-2 justify-center mb-8">
               <Ticket className="h-8 w-8 text-emerald-600" />
-              <span className="text-2xl font-bold text-slate-900">TicketSystem</span>
+              <span className="text-2xl font-bold text-slate-900">TicketHub</span>
             </div>
 
             <div className="text-center mb-8">

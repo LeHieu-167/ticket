@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * DTO trả về thông tin loại vé
@@ -19,7 +20,7 @@ import java.time.LocalDateTime;
 public class TicketTypeResponse {
 
     private Long id;
-    private Long eventId;
+    private UUID eventId;
     private String eventName;
     private String name;
     private String description;

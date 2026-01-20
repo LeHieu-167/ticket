@@ -8,9 +8,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-public interface TicketRepository extends JpaRepository<Ticket, Long> {
+public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 
     /**
      * Tìm vé theo mã vé (ticket code)
@@ -20,24 +21,29 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     /**
      * Tìm tất cả vé của một đơn hàng
      */
-    List<Ticket> findByOrderId(Long orderId);
+    List<Ticket> findByOrderId(UUID orderId);
 
     /**
      * Tìm tất cả vé của một sự kiện
      */
-    List<Ticket> findByEventId(Long eventId);
+    List<Ticket> findByEventId(UUID eventId);
+
+    /**
+     * Tìm tất cả vé của một sự kiện, sắp xếp theo ngày tạo mới nhất
+     */
+    List<Ticket> findByEventIdOrderByCreatedAtDesc(UUID eventId);
 
     /**
      * Tìm tất cả vé của một khách hàng (thông qua order)
      */
     @Query("SELECT t FROM Ticket t JOIN t.order o WHERE o.customerId = :customerId")
-    List<Ticket> findByCustomerId(@Param("customerId") Long customerId);
+    List<Ticket> findByCustomerId(@Param("customerId") UUID customerId);
 
     /**
      * Tìm tất cả vé của một khách hàng cho một sự kiện cụ thể
      */
     @Query("SELECT t FROM Ticket t JOIN t.order o WHERE o.customerId = :customerId AND t.event.id = :eventId")
-    List<Ticket> findByCustomerIdAndEventId(@Param("customerId") Long customerId, @Param("eventId") Long eventId);
+    List<Ticket> findByCustomerIdAndEventId(@Param("customerId") UUID customerId, @Param("eventId") UUID eventId);
 
     /**
      * Tìm vé theo trạng thái
@@ -47,19 +53,19 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     /**
      * Tìm vé theo sự kiện và trạng thái
      */
-    List<Ticket> findByEventIdAndStatus(Long eventId, Ticket.TicketStatus status);
+    List<Ticket> findByEventIdAndStatus(UUID eventId, Ticket.TicketStatus status);
 
     /**
      * Đếm số vé đã check-in của một sự kiện
      */
     @Query("SELECT COUNT(t) FROM Ticket t WHERE t.event.id = :eventId AND t.status = 'USED'")
-    Long countCheckedInByEventId(@Param("eventId") Long eventId);
+    Long countCheckedInByEventId(@Param("eventId") UUID eventId);
 
     /**
      * Đếm tổng số vé active của một sự kiện
      */
     @Query("SELECT COUNT(t) FROM Ticket t WHERE t.event.id = :eventId AND t.status = 'ACTIVE'")
-    Long countActiveByEventId(@Param("eventId") Long eventId);
+    Long countActiveByEventId(@Param("eventId") UUID eventId);
 
     /**
      * Tìm vé theo loại vé
@@ -75,19 +81,19 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
      * Tìm vé theo ghế cụ thể trong sự kiện (dùng cho FULL_SEAT)
      */
     @Query("SELECT t FROM Ticket t WHERE t.event.id = :eventId AND t.zoneName = :zoneName AND t.rowName = :rowName AND t.seatNumber = :seatNumber AND t.status NOT IN ('CANCELLED', 'REFUNDED')")
-    Optional<Ticket> findBySeatInEvent(@Param("eventId") Long eventId, @Param("zoneName") String zoneName, @Param("rowName") String rowName, @Param("seatNumber") String seatNumber);
+    Optional<Ticket> findBySeatInEvent(@Param("eventId") UUID eventId, @Param("zoneName") String zoneName, @Param("rowName") String rowName, @Param("seatNumber") String seatNumber);
 
     /**
      * Lấy danh sách ghế đã bán trong một khu vực
      */
     @Query("SELECT t FROM Ticket t WHERE t.event.id = :eventId AND t.zoneName = :zoneName AND t.status NOT IN ('CANCELLED', 'REFUNDED')")
-    List<Ticket> findSoldSeatsInZone(@Param("eventId") Long eventId, @Param("zoneName") String zoneName);
+    List<Ticket> findSoldSeatsInZone(@Param("eventId") UUID eventId, @Param("zoneName") String zoneName);
 
     /**
      * Tìm vé theo khu vực và hàng (dùng cho ZONE_WITH_ROW)
      */
     @Query("SELECT t FROM Ticket t WHERE t.event.id = :eventId AND t.zoneName = :zoneName AND t.rowName = :rowName AND t.status NOT IN ('CANCELLED', 'REFUNDED')")
-    List<Ticket> findByZoneAndRow(@Param("eventId") Long eventId, @Param("zoneName") String zoneName, @Param("rowName") String rowName);
+    List<Ticket> findByZoneAndRow(@Param("eventId") UUID eventId, @Param("zoneName") String zoneName, @Param("rowName") String rowName);
 
     /**
      * Đếm số vé đã bán theo loại vé

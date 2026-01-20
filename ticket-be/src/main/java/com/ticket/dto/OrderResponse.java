@@ -7,14 +7,15 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class OrderResponse {
-    private Long id;
-    private Long customerId;
-    private Long eventId;
+    private UUID id;
+    private UUID customerId;
+    private UUID eventId;
     private Integer ticketQuantity;
     private BigDecimal totalPrice;
     private String status;
@@ -24,6 +25,12 @@ public class OrderResponse {
     private LocalDateTime paymentTime;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    
+    /**
+     * Thời điểm hết hạn giữ vé (Booking Session Timeout)
+     * Frontend sử dụng trường này để hiển thị đồng hồ đếm ngược
+     */
+    private LocalDateTime expiredAt;
 
     public static OrderResponse fromEntity(Order order) {
         OrderResponse response = new OrderResponse();
@@ -39,6 +46,7 @@ public class OrderResponse {
         response.setPaymentTime(order.getPaymentTime());
         response.setCreatedAt(order.getCreatedAt());
         response.setUpdatedAt(order.getUpdatedAt());
+        response.setExpiredAt(order.getExpiredAt());
         return response;
     }
 }

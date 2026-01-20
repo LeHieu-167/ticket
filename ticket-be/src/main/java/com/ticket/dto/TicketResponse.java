@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * DTO trả về thông tin vé điện tử đầy đủ
@@ -19,7 +20,7 @@ import java.time.LocalDateTime;
 @Builder
 public class TicketResponse {
 
-    private Long id;
+    private UUID id;
     private String ticketCode;
     
     // QR Code
@@ -27,11 +28,11 @@ public class TicketResponse {
     private String qrCodeDataUri;
     
     // Thông tin đơn hàng
-    private Long orderId;
+    private UUID orderId;
     private String orderCode;
     
     // Thông tin sự kiện
-    private Long eventId;
+    private UUID eventId;
     private String eventName;
     private String eventLocation;
     private String eventAddress;
@@ -72,7 +73,14 @@ public class TicketResponse {
     private LocalDateTime updatedAt;
 
     /**
-     * Chuyển đổi từ Entity sang DTO
+     * Chuyển đổi từ Entity sang DTO (không có QR code)
+     */
+    public static TicketResponse fromEntity(Ticket ticket) {
+        return fromEntity(ticket, null);
+    }
+
+    /**
+     * Chuyển đổi từ Entity sang DTO (có QR code)
      */
     public static TicketResponse fromEntity(Ticket ticket, String qrCodeBase64) {
         TicketResponseBuilder builder = TicketResponse.builder()

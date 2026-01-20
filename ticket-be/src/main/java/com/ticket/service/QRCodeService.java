@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Service để tạo mã QR Code cho vé điện tử
@@ -48,10 +49,10 @@ public class QRCodeService {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             MatrixToImageWriter.writeToStream(bitMatrix, DEFAULT_FORMAT, outputStream);
 
-            log.debug("✅ Đã tạo QR Code cho nội dung: {}", content.substring(0, Math.min(50, content.length())));
+            log.debug("Đã tạo QR Code cho nội dung: {}", content.substring(0, Math.min(50, content.length())));
             return outputStream.toByteArray();
         } catch (WriterException | IOException e) {
-            log.error("❌ Lỗi tạo QR Code: {}", e.getMessage());
+            log.error("Lỗi tạo QR Code: {}", e.getMessage());
             throw new RuntimeException("Không thể tạo QR Code", e);
         }
     }
@@ -109,8 +110,8 @@ public class QRCodeService {
      * @param orderId    ID đơn hàng
      * @return Chuỗi nội dung QR
      */
-    public String buildTicketQRContent(String ticketCode, Long eventId, Long orderId) {
-        return String.format("TICKET:%s|EVENT:%d|ORDER:%d", ticketCode, eventId, orderId);
+    public String buildTicketQRContent(String ticketCode, UUID eventId, UUID orderId) {
+        return String.format("TICKET:%s|EVENT:%s|ORDER:%s", ticketCode, eventId, orderId);
     }
 
     /**

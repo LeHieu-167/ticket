@@ -37,11 +37,11 @@ public class OrderProducerService {
 
         future.whenComplete((result, ex) -> {
             if (ex == null) {
-                log.info("✅ Đã gửi thành công yêu cầu đặt vé vào Kafka - Partition: {}, Offset: {}",
+                log.info("Đã gửi thành công yêu cầu đặt vé vào Kafka - Partition: {}, Offset: {}",
                         result.getRecordMetadata().partition(),
                         result.getRecordMetadata().offset());
             } else {
-                log.error("❌ Lỗi khi gửi yêu cầu đặt vé vào Kafka: {}", ex.getMessage());
+                log.error("Lỗi khi gửi yêu cầu đặt vé vào Kafka: {}", ex.getMessage());
             }
         });
 

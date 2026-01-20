@@ -6,14 +6,15 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class OrderNotification implements Serializable {
-    private Long orderId;
-    private Long customerId;
-    private Long eventId;
+    private UUID orderId;
+    private UUID customerId;
+    private UUID eventId;
     private String orderStatus; // CONFIRMED, FAILED
     private String message;
     private BigDecimal totalPrice;

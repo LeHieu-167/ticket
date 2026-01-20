@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface TicketTypeRepository extends JpaRepository<TicketType, Long> {
@@ -15,39 +16,39 @@ public interface TicketTypeRepository extends JpaRepository<TicketType, Long> {
     /**
      * Tìm tất cả loại vé của một sự kiện
      */
-    List<TicketType> findByEventIdOrderByDisplayOrderAsc(Long eventId);
+    List<TicketType> findByEventIdOrderByDisplayOrderAsc(UUID eventId);
 
     /**
      * Tìm loại vé đang active của một sự kiện
      */
-    List<TicketType> findByEventIdAndIsActiveTrueOrderByDisplayOrderAsc(Long eventId);
+    List<TicketType> findByEventIdAndIsActiveTrueOrderByDisplayOrderAsc(UUID eventId);
 
     /**
      * Tìm loại vé theo tên trong một sự kiện
      */
-    Optional<TicketType> findByEventIdAndName(Long eventId, String name);
+    Optional<TicketType> findByEventIdAndName(UUID eventId, String name);
 
     /**
      * Tìm loại vé còn vé khả dụng
      */
     @Query("SELECT tt FROM TicketType tt WHERE tt.event.id = :eventId AND tt.isActive = true AND tt.availableQuantity > 0 ORDER BY tt.displayOrder")
-    List<TicketType> findAvailableByEventId(@Param("eventId") Long eventId);
+    List<TicketType> findAvailableByEventId(@Param("eventId") UUID eventId);
 
     /**
      * Tính tổng số vé còn lại của một sự kiện
      */
     @Query("SELECT COALESCE(SUM(tt.availableQuantity), 0) FROM TicketType tt WHERE tt.event.id = :eventId AND tt.isActive = true")
-    Integer sumAvailableQuantityByEventId(@Param("eventId") Long eventId);
+    Integer sumAvailableQuantityByEventId(@Param("eventId") UUID eventId);
 
     /**
      * Tính tổng số vé ban đầu của một sự kiện
      */
     @Query("SELECT COALESCE(SUM(tt.totalQuantity), 0) FROM TicketType tt WHERE tt.event.id = :eventId")
-    Integer sumTotalQuantityByEventId(@Param("eventId") Long eventId);
+    Integer sumTotalQuantityByEventId(@Param("eventId") UUID eventId);
 
     /**
      * Kiểm tra loại vé có thuộc sự kiện không
      */
-    boolean existsByIdAndEventId(Long id, Long eventId);
+    boolean existsByIdAndEventId(Long id, UUID eventId);
 }
 

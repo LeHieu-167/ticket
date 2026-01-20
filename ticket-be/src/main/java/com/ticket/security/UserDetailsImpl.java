@@ -10,12 +10,13 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Data
 @AllArgsConstructor
 public class UserDetailsImpl implements UserDetails {
-    private Long id;
+    private UUID id;
     private String username;
     private String email;
     
