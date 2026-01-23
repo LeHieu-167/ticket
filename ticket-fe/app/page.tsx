@@ -228,7 +228,7 @@ const EventCardGrid = ({ event }: { event: EventResponse }) => {
     "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=1000&auto=format&fit=crop";
 
   return (
-    <Link href={`/events/${event.id}`}>
+    <Link href={`/events/${event.slug}`}>
       <Card className="group overflow-hidden border border-slate-200 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 rounded-2xl cursor-pointer h-full flex flex-col bg-white">
         <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
           <img 
@@ -300,7 +300,7 @@ const EventCardList = ({ event }: { event: EventResponse }) => {
     "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=1000&auto=format&fit=crop";
 
   return (
-    <Link href={`/events/${event.id}`}>
+    <Link href={`/events/${event.slug}`}>
       <Card className="group overflow-hidden border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 rounded-2xl cursor-pointer bg-white">
         <div className="flex flex-col md:flex-row">
           <div className="relative w-full md:w-64 aspect-[16/10] md:aspect-auto overflow-hidden bg-slate-100 shrink-0">

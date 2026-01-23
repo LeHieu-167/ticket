@@ -169,7 +169,9 @@ export const ticketService = {
    * Check-in vé (Organizer)
    */
   async checkInTicket(ticketCode: string): Promise<CheckInResponse> {
-    const response = await api.post<CheckInResponse>(`/api/tickets/check-in/${ticketCode}`);
+    // Trim và encode ticketCode để tránh lỗi URL
+    const cleanedCode = encodeURIComponent(ticketCode.trim());
+    const response = await api.post<CheckInResponse>(`/api/tickets/check-in/${cleanedCode}`);
     return response.data;
   },
 

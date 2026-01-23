@@ -126,13 +126,17 @@ const FileUpload = ({ label, accept, icon, fileName, onFileSelect, helperText, p
 export default function EditEventPage() {
   const router = useRouter();
   const params = useParams();
-  const eventId = params.id as string;
+  // Sử dụng slug từ URL
+  const eventSlug = params.slug as string;
   const toast = useToast();
   
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  
+  // Event ID để gọi API update (backend cần UUID)
+  const [eventId, setEventId] = useState<string | null>(null);
   
   // Event status states
   const [eventStatus, setEventStatus] = useState<EventStatus>(EventStatus.DRAFT);
@@ -163,18 +167,22 @@ export default function EditEventPage() {
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
 
-  // Check auth and fetch event
+  // Check auth and fetch event bằng slug
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      router.push(`/login?redirect=/events/${eventId}/edit`);
+      router.push(`/login?redirect=/events/${eventSlug}/edit`);
       return;
     }
 
     const fetchEvent = async () => {
       try {
         setIsLoading(true);
-        const data = await eventService.getEventById(eventId);
+        // Fetch event bằng slug
+        const data = await eventService.getEventBySlug(eventSlug);
+        
+        // Lưu event ID để dùng cho API update
+        setEventId(data.id);
         
         // Populate status states
         setEventStatus(data.status);
@@ -205,11 +213,11 @@ export default function EditEventPage() {
       }
     };
 
-    if (eventId) {
+    if (eventSlug) {
       fetchEvent();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId]);
+  }, [eventSlug]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -232,6 +240,8 @@ export default function EditEventPage() {
 
   // Toggle sales status (ACTIVE <-> STOP_SELLING)
   const handleToggleSales = async () => {
+    if (!eventId) return;
+    
     // Cho phép toggle giữa ACTIVE và STOP_SELLING
     if (eventStatus !== EventStatus.ACTIVE && eventStatus !== EventStatus.STOP_SELLING) {
       toast.error("Chỉ có thể thay đổi trạng thái bán vé khi sự kiện đang hoạt động!");
@@ -297,6 +307,8 @@ export default function EditEventPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!eventId) return;
+    
     setSubmitError(null);
     setIsSubmitting(true);
 
@@ -308,13 +320,11 @@ export default function EditEventPage() {
 
       const eventData: EventRequest = {
         ...formData,
-        // Ensure ticketPrice and availableTickets are consistent 
-        // if using ticketTypes logic, but for update we might just use the simple fields
       };
 
       console.log("Updating event data:", eventData);
       
-      // Call API to update event
+      // Call API to update event - sử dụng eventId (UUID)
       await eventService.updateEvent(eventId, eventData);
       
       toast.success('Cập nhật sự kiện thành công!');
@@ -606,7 +616,7 @@ export default function EditEventPage() {
             </CardContent>
           </Card>
 
-           {/* Price & Quantity - Simplified for Edit if Ticket Types not supported nicely */}
+           {/* Price & Quantity */}
            <Card className="border-0 shadow-lg rounded-2xl">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -770,4 +780,3 @@ export default function EditEventPage() {
     </div>
   );
 }
-

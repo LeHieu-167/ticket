@@ -150,10 +150,10 @@ const ErrorState = ({ message }: { message: string }) => (
       </div>
       <h2 className="text-2xl font-bold text-slate-900 mb-2">Không tìm thấy sự kiện</h2>
       <p className="text-slate-500 mb-6">{message}</p>
-      <Link href="/events">
+      <Link href="/">
         <Button className="bg-violet-600 hover:bg-violet-700">
           <ChevronLeft className="w-4 h-4 mr-2" />
-          Quay lại danh sách
+          Quay lại trang chủ
         </Button>
       </Link>
     </div>
@@ -164,7 +164,8 @@ const ErrorState = ({ message }: { message: string }) => (
 export default function EventDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const eventId = params.id as string;
+  // Sử dụng slug thay vì id
+  const eventSlug = params.slug as string;
 
   const [event, setEvent] = useState<EventResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -172,15 +173,16 @@ export default function EventDetailPage() {
   const [isLiked, setIsLiked] = useState(false);
   const [selectedTicketCount, setSelectedTicketCount] = useState(1);
 
-  // Fetch event details
+  // Fetch event details bằng slug
   useEffect(() => {
     const fetchEvent = async () => {
-      if (!eventId) return;
+      if (!eventSlug) return;
       
       try {
         setIsLoading(true);
         setError(null);
-        const data = await eventService.getEventById(eventId);
+        // Sử dụng getEventBySlug thay vì getEventById
+        const data = await eventService.getEventBySlug(eventSlug);
         setEvent(data);
       } catch (err) {
         console.error("Lỗi khi tải chi tiết sự kiện:", err);
@@ -191,7 +193,7 @@ export default function EventDetailPage() {
     };
 
     fetchEvent();
-  }, [eventId]);
+  }, [eventSlug]);
 
   if (isLoading) return <LoadingState />;
   if (error || !event) return <ErrorState message={error || "Đã có lỗi xảy ra"} />;
@@ -211,12 +213,12 @@ export default function EventDetailPage() {
     // Check if user is logged in
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      // Redirect to login with return URL
+      // Redirect to login with return URL - sử dụng event.id cho booking vì backend cần UUID
       router.push(`/login?redirect=/booking/${event.id}/tickets`);
       return;
     }
     
-    // Navigate to booking flow
+    // Navigate to booking flow - sử dụng event.id vì backend cần UUID
     router.push(`/booking/${event.id}/tickets`);
   };
 
@@ -254,7 +256,7 @@ export default function EventDetailPage() {
           
           {/* Back Button */}
           <div className="absolute top-4 left-4 z-10">
-            <Link href="/events">
+            <Link href="/">
               <Button variant="outline" size="sm" className="bg-white/90 hover:bg-white backdrop-blur-sm rounded-full">
                 <ChevronLeft className="w-4 h-4 mr-1" />
                 Quay lại
@@ -503,5 +505,3 @@ Hãy đặt vé ngay để không bỏ lỡ cơ hội tham gia sự kiện này!
     </div>
   );
 }
-
-

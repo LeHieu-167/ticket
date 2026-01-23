@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Data
@@ -58,6 +60,29 @@ public class NotificationMessage {
         notification.setMessage(message);
         notification.setTimestamp(LocalDateTime.now());
         notification.setSeverity(severity);
+        return notification;
+    }
+
+    /**
+     * Notification khi vé được check-in
+     * Gửi tới user sở hữu vé để cập nhật trạng thái realtime
+     */
+    public static NotificationMessage ticketCheckedIn(UUID ticketId, String ticketCode, String eventName, LocalDateTime checkedInAt) {
+        NotificationMessage notification = new NotificationMessage();
+        notification.setType("TICKET_CHECKIN");
+        notification.setTitle("Vé đã được check-in");
+        notification.setMessage("Vé " + ticketCode + " cho sự kiện \"" + eventName + "\" đã được check-in thành công!");
+        
+        Map<String, Object> data = new HashMap<>();
+        data.put("ticketId", ticketId.toString());
+        data.put("ticketCode", ticketCode);
+        data.put("eventName", eventName);
+        data.put("status", "USED");
+        data.put("checkedInAt", checkedInAt.toString());
+        notification.setData(data);
+        
+        notification.setTimestamp(LocalDateTime.now());
+        notification.setSeverity("INFO");
         return notification;
     }
 }

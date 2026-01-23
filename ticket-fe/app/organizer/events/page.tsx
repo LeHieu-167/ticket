@@ -499,8 +499,8 @@ export default function OrganizerEventsPage() {
                       <EventRow
                         key={event.id}
                         event={event}
-                        onView={() => router.push(`/events/${event.id}`)}
-                        onEdit={() => router.push(`/events/${event.id}/edit`)}
+                        onView={() => router.push(`/events/${event.slug}`)}
+                        onEdit={() => router.push(`/events/${event.slug}/edit`)}
                         onDelete={() => setDeleteEvent(event)}
                       />
                     ))}

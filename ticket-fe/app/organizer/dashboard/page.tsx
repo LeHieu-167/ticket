@@ -209,7 +209,7 @@ const EventRow = ({ event }: { event: EventResponse }) => (
         <p className="font-bold text-slate-900">{event.availableTickets} vé còn</p>
         <p className="text-sm text-slate-500">{formatCurrency(event.ticketPrice)}</p>
       </div>
-      <Link href={`/events/${event.id}`}>
+      <Link href={`/events/${event.slug}`}>
         <Button variant="ghost" size="icon" className="rounded-xl">
           <Eye className="w-5 h-5" />
         </Button>

@@ -483,7 +483,7 @@ export default function AdminEventsPage() {
                 onApprove={() => handleApprove(event)}
                 onReject={() => setRejectEvent(event)}
                 onCancel={() => setCancelEvent(event)}
-                onView={() => router.push(`/events/${event.id}`)}
+                onView={() => router.push(`/events/${event.slug}`)}
                 isProcessing={processingId === event.id}
               />
             ))}

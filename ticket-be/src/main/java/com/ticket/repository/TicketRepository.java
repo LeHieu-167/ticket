@@ -14,9 +14,15 @@ import java.util.UUID;
 public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 
     /**
-     * Tìm vé theo mã vé (ticket code)
+     * Tìm vé theo mã vé (ticket code) - exact match
      */
     Optional<Ticket> findByTicketCode(String ticketCode);
+
+    /**
+     * Tìm vé theo mã vé (ticket code) - case insensitive
+     */
+    @Query("SELECT t FROM Ticket t WHERE LOWER(t.ticketCode) = LOWER(:ticketCode)")
+    Optional<Ticket> findByTicketCodeIgnoreCase(@Param("ticketCode") String ticketCode);
 
     /**
      * Tìm tất cả vé của một đơn hàng

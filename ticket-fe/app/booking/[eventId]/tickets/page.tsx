@@ -442,7 +442,7 @@ export default function TicketSelectionPage({ params }: { params: Promise<{ even
       <header className="bg-white border-b sticky top-0 z-50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            <Link href={`/events/${eventId}`} className="flex items-center gap-2 text-slate-600 hover:text-violet-600">
+            <Link href={`/events/${event?.slug || eventId}`} className="flex items-center gap-2 text-slate-600 hover:text-violet-600">
               <ChevronLeft className="w-5 h-5" />
               <span className="font-medium">Quay lại</span>
             </Link>
@@ -514,7 +514,7 @@ export default function TicketSelectionPage({ params }: { params: Promise<{ even
             <p className="text-xl font-bold text-slate-900">{totalTickets} vé</p>
           </div>
           <div className="flex items-center gap-3 flex-1 sm:flex-none">
-            <Link href={`/events/${eventId}`} className="flex-1 sm:flex-none">
+            <Link href={`/events/${event?.slug || eventId}`} className="flex-1 sm:flex-none">
               <Button variant="outline" className="w-full sm:w-auto">
                 <ChevronLeft className="w-4 h-4 mr-2" />
                 Quay lại

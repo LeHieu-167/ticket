@@ -1,18 +1,19 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
   Ticket, Calendar, MapPin, Clock, Download, ChevronRight,
   Loader2, AlertCircle, Search, Filter, QrCode, User,
-  CheckCircle, XCircle, ChevronLeft
+  CheckCircle, XCircle, ChevronLeft, Wifi, WifiOff
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "@/components/layouts/Header";
 import ticketService, { TicketResponse } from "@/apis/ticket.service";
+import { useWebSocket, TicketCheckinData } from "@/hooks/use-websocket";
 
 // --- UTILS ---
 
@@ -260,14 +261,57 @@ export default function MyTicketsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<'all' | 'upcoming' | 'past'>('all');
   const [selectedTicket, setSelectedTicket] = useState<TicketResponse | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [checkinNotification, setCheckinNotification] = useState<string | null>(null);
 
-  // Check auth
+  // Check auth & get userId
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
       router.push('/login?redirect=/my-tickets');
+      return;
+    }
+    
+    // Get userId from userData
+    const userData = localStorage.getItem('userData');
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        setUserId(user.id);
+      } catch (e) {
+        console.error('Error parsing userData:', e);
+      }
     }
   }, [router]);
+
+  // Callback khi vé được check-in realtime
+  const handleTicketCheckedIn = useCallback((data: TicketCheckinData) => {
+    console.log('🎫 Ticket checked in:', data);
+    
+    // Update tickets list
+    setTickets(prev => prev.map(ticket => 
+      ticket.id === data.ticketId 
+        ? { ...ticket, status: 'USED' as const, checkedInAt: data.checkedInAt }
+        : ticket
+    ));
+    
+    // Update selected ticket if viewing
+    setSelectedTicket(prev => 
+      prev?.id === data.ticketId 
+        ? { ...prev, status: 'USED' as const, checkedInAt: data.checkedInAt }
+        : prev
+    );
+
+    // Show notification
+    setCheckinNotification(`Vé ${data.ticketCode} đã được check-in!`);
+    setTimeout(() => setCheckinNotification(null), 5000);
+  }, []);
+
+  // WebSocket connection for realtime updates
+  const { status: wsStatus, isConnected } = useWebSocket({
+    userId,
+    onTicketCheckedIn: handleTicketCheckedIn,
+  });
 
   // Fetch tickets
   useEffect(() => {
@@ -392,11 +436,42 @@ export default function MyTicketsPage() {
     <div className="min-h-screen bg-slate-50">
       <Header activeNav="none" />
 
+      {/* Check-in Notification Toast */}
+      {checkinNotification && (
+        <div className="fixed top-20 right-4 z-50 animate-in slide-in-from-right duration-300">
+          <div className="bg-green-500 text-white px-6 py-4 rounded-xl shadow-lg flex items-center gap-3">
+            <CheckCircle className="w-5 h-5" />
+            <span className="font-medium">{checkinNotification}</span>
+          </div>
+        </div>
+      )}
+
       <main className="container mx-auto px-4 py-8">
         {/* Page Title */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-black text-slate-900 mb-2">Vé của tôi</h1>
-          <p className="text-slate-500">Quản lý tất cả vé sự kiện của bạn</p>
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 mb-2">Vé của tôi</h1>
+            <p className="text-slate-500">Quản lý tất cả vé sự kiện của bạn</p>
+          </div>
+          
+          {/* WebSocket Status Indicator */}
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium
+            ${isConnected 
+              ? 'bg-green-100 text-green-700' 
+              : 'bg-slate-100 text-slate-500'}`}
+          >
+            {isConnected ? (
+              <>
+                <Wifi className="w-3.5 h-3.5" />
+                <span>Realtime</span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="w-3.5 h-3.5" />
+                <span>Offline</span>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Search & Filter */}

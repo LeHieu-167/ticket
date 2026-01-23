@@ -1,6 +1,7 @@
 package com.ticket.service;
 
 import com.ticket.dto.CheckInResponse;
+import com.ticket.dto.NotificationMessage;
 import com.ticket.dto.TicketResponse;
 import com.ticket.dto.TicketTypeRequest;
 import com.ticket.dto.TicketTypeResponse;
@@ -35,6 +36,7 @@ public class TicketService {
     private final EventRepository eventRepository;
     private final OrderRepository orderRepository;
     private final QRCodeService qrCodeService;
+    private final NotificationService notificationService;
 
     @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
@@ -303,11 +305,15 @@ public class TicketService {
     }
 
     /**
-     * Lấy thông tin vé theo mã vé
+     * Lấy thông tin vé theo mã vé hoặc UUID id
      */
     public TicketResponse getTicketByCode(String ticketCode) {
-        Ticket ticket = ticketRepository.findByTicketCode(ticketCode)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy vé với mã: " + ticketCode));
+        String cleanedCode = ticketCode != null ? ticketCode.trim() : "";
+        
+        Ticket ticket = findTicketByCodeOrId(cleanedCode);
+        if (ticket == null) {
+            throw new RuntimeException("Không tìm thấy vé với mã: " + cleanedCode);
+        }
         return convertToResponse(ticket);
     }
 
@@ -344,12 +350,52 @@ public class TicketService {
     // ==================== TICKET CHECK-IN ====================
 
     /**
+     * Helper method để tìm vé theo ticketCode hoặc UUID id
+     * Thứ tự ưu tiên:
+     * 1. Exact match ticketCode
+     * 2. Case-insensitive ticketCode
+     * 3. Nếu input là UUID format -> tìm theo id
+     */
+    private Ticket findTicketByCodeOrId(String input) {
+        // 1. Thử exact match ticketCode
+        return ticketRepository.findByTicketCode(input)
+                .or(() -> {
+                    // 2. Thử case-insensitive
+                    log.debug("🔄 Exact match không tìm thấy, thử case-insensitive...");
+                    return ticketRepository.findByTicketCodeIgnoreCase(input);
+                })
+                .or(() -> {
+                    // 3. Thử parse như UUID và tìm theo id
+                    try {
+                        UUID ticketId = UUID.fromString(input);
+                        log.debug("🔄 Thử tìm theo UUID id: {}", ticketId);
+                        return ticketRepository.findById(ticketId);
+                    } catch (IllegalArgumentException e) {
+                        // Không phải UUID format, bỏ qua
+                        return java.util.Optional.empty();
+                    }
+                })
+                .orElse(null);
+    }
+
+    /**
      * Check-in vé (quét QR tại sự kiện)
+     * Hỗ trợ tìm kiếm theo ticketCode hoặc UUID id
      */
     @Transactional
     public TicketResponse checkInTicket(String ticketCode, UUID staffId) {
-        Ticket ticket = ticketRepository.findByTicketCode(ticketCode)
-                .orElseThrow(() -> new RuntimeException("Mã vé không hợp lệ: " + ticketCode));
+        // Trim whitespace từ input
+        String cleanedCode = ticketCode != null ? ticketCode.trim() : "";
+        
+        if (cleanedCode.isEmpty()) {
+            throw new RuntimeException("Mã vé không được để trống");
+        }
+        
+        // Tìm vé theo ticketCode hoặc UUID id
+        Ticket ticket = findTicketByCodeOrId(cleanedCode);
+        if (ticket == null) {
+            throw new RuntimeException("Mã vé không hợp lệ: " + cleanedCode);
+        }
 
         // Kiểm tra trạng thái vé
         if (ticket.getStatus() == Ticket.TicketStatus.USED) {
@@ -373,18 +419,36 @@ public class TicketService {
         ticket.setCheckedInBy(staffId);
 
         ticket = ticketRepository.save(ticket);
-        log.info("Check-in thành công vé {} cho sự kiện {}", ticketCode, ticket.getEvent().getName());
+        log.info("🎉 Check-in thành công vé {} cho sự kiện {}", cleanedCode, ticket.getEvent().getName());
 
         return convertToResponse(ticket);
     }
 
     /**
      * Check-in vé và trả về CheckInResponse
+     * Hỗ trợ tìm kiếm theo ticketCode hoặc UUID id
      */
     @Transactional
     public CheckInResponse checkInTicketWithResponse(String ticketCode, UUID staffId) {
-        Ticket ticket = ticketRepository.findByTicketCode(ticketCode)
-                .orElseThrow(() -> new RuntimeException("Mã vé không hợp lệ: " + ticketCode));
+        // Trim whitespace từ input
+        String cleanedCode = ticketCode != null ? ticketCode.trim() : "";
+        log.info("🔍 Check-in request với mã vé: '{}' (original: '{}')", cleanedCode, ticketCode);
+        
+        if (cleanedCode.isEmpty()) {
+            log.warn("❌ Mã vé rỗng");
+            return CheckInResponse.failure("Mã vé không được để trống");
+        }
+        
+        // Tìm vé - thử các cách khác nhau
+        Ticket ticket = findTicketByCodeOrId(cleanedCode);
+        
+        if (ticket == null) {
+            log.warn("❌ Không tìm thấy vé với mã: '{}'", cleanedCode);
+            return CheckInResponse.failure("Mã vé không hợp lệ: " + cleanedCode);
+        }
+        
+        log.info("✅ Tìm thấy vé: id={}, ticketCode={}, status={}", 
+                ticket.getId(), ticket.getTicketCode(), ticket.getStatus());
 
         // Kiểm tra trạng thái vé
         if (ticket.getStatus() == Ticket.TicketStatus.USED) {
@@ -417,17 +481,38 @@ public class TicketService {
         ticket.setCheckedInBy(staffId);
 
         ticket = ticketRepository.save(ticket);
-        log.info("Check-in thành công vé {} cho sự kiện {}", ticketCode, ticket.getEvent().getName());
+        log.info("🎉 Check-in thành công vé {} cho sự kiện {}", cleanedCode, ticket.getEvent().getName());
+
+        // Gửi notification realtime tới user sở hữu vé
+        try {
+            UUID ticketOwnerId = ticket.getOrder().getCustomerId();
+            NotificationMessage notification = NotificationMessage.ticketCheckedIn(
+                    ticket.getId(),
+                    ticket.getTicketCode(),
+                    ticket.getEvent().getName(),
+                    now
+            );
+            notificationService.sendToUser(ticketOwnerId, notification);
+            log.info("📤 Đã gửi notification check-in tới user {}", ticketOwnerId);
+        } catch (Exception e) {
+            // Không để lỗi notification ảnh hưởng tới check-in
+            log.warn("⚠️ Không thể gửi notification check-in: {}", e.getMessage());
+        }
 
         return CheckInResponse.success(ticket, "Check-in thành công!");
     }
 
     /**
      * Verify vé (kiểm tra thông tin không thay đổi trạng thái)
+     * Hỗ trợ tìm kiếm theo ticketCode hoặc UUID id
      */
     public TicketResponse verifyTicket(String ticketCode) {
-        Ticket ticket = ticketRepository.findByTicketCode(ticketCode)
-                .orElseThrow(() -> new RuntimeException("Mã vé không hợp lệ: " + ticketCode));
+        String cleanedCode = ticketCode != null ? ticketCode.trim() : "";
+        
+        Ticket ticket = findTicketByCodeOrId(cleanedCode);
+        if (ticket == null) {
+            throw new RuntimeException("Mã vé không hợp lệ: " + cleanedCode);
+        }
         return convertToResponse(ticket);
     }
 
