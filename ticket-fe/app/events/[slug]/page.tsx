@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { 
   Ticket, MapPin, Calendar, Clock, Users, Share2, Heart, 
   ChevronLeft, Loader2, AlertCircle, CheckCircle, Star,
-  Building2, FileText, Music, Mic2, User
+  Building2, FileText, Music, Mic2, User, ImageIcon, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,31 +43,6 @@ const formatDateRange = (startDate: string, endDate?: string) => {
   return `${start.full} - ${end.full}`;
 };
 
-// Mock artists data (since backend might not have this yet)
-const getMockArtists = (eventName: string): ArtistInfo[] => {
-  // Return empty if no event name contains music-related keywords
-  const musicKeywords = ['concert', 'live', 'show', 'nhạc', 'ca sĩ', 'dj', 'festival'];
-  const isMusicEvent = musicKeywords.some(kw => eventName.toLowerCase().includes(kw));
-  
-  if (!isMusicEvent) return [];
-  
-  return [
-    {
-      id: "artist-001",
-      name: "Nghệ sĩ chính",
-      role: "Ca sĩ",
-      imageUrl: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=200&h=200&fit=crop",
-      description: "Nghệ sĩ hàng đầu với nhiều năm kinh nghiệm biểu diễn"
-    },
-    {
-      id: "artist-002",
-      name: "Khách mời đặc biệt",
-      role: "DJ",
-      imageUrl: "https://images.unsplash.com/photo-1571266028243-3716f02d2d2e?w=200&h=200&fit=crop",
-      description: "DJ nổi tiếng với phong cách âm nhạc độc đáo"
-    }
-  ];
-};
 
 // --- COMPONENTS ---
 
@@ -131,6 +106,138 @@ const AvailabilityBadge = ({ available, total }: { available: number; total?: nu
   );
 };
 
+// Default placeholder image
+const DEFAULT_EVENT_IMAGE = "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2070&auto=format&fit=crop";
+
+// Image Gallery Modal Component
+const ImageGalleryModal = ({ 
+  images, 
+  currentIndex, 
+  isOpen, 
+  onClose, 
+  onNavigate 
+}: { 
+  images: { url: string; label: string }[];
+  currentIndex: number;
+  isOpen: boolean;
+  onClose: () => void;
+  onNavigate: (index: number) => void;
+}) => {
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center" onClick={onClose}>
+      <button 
+        onClick={onClose}
+        className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
+      >
+        <X className="w-8 h-8" />
+      </button>
+      
+      <div className="relative w-full h-full flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
+        <img 
+          src={images[currentIndex]?.url} 
+          alt={images[currentIndex]?.label}
+          className="max-w-full max-h-[90vh] object-contain rounded-lg"
+        />
+        
+        {/* Image counter */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/60 text-white px-4 py-2 rounded-full text-sm">
+          {currentIndex + 1} / {images.length} - {images[currentIndex]?.label}
+        </div>
+        
+        {/* Navigation dots */}
+        {images.length > 1 && (
+          <div className="absolute bottom-16 left-1/2 -translate-x-1/2 flex gap-2">
+            {images.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => onNavigate(idx)}
+                className={`w-3 h-3 rounded-full transition-colors ${
+                  idx === currentIndex ? 'bg-white' : 'bg-white/40 hover:bg-white/60'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Event Images Gallery Component
+const EventImagesGallery = ({ 
+  bannerImageUrl, 
+  thumbnailUrl, 
+  eventName,
+  onImageClick
+}: { 
+  bannerImageUrl?: string; 
+  thumbnailUrl?: string; 
+  eventName: string;
+  onImageClick: (index: number) => void;
+}) => {
+  const hasBanner = bannerImageUrl && bannerImageUrl.trim() !== '';
+  const hasThumbnail = thumbnailUrl && thumbnailUrl.trim() !== '';
+  
+  // If no images at all, don't render gallery
+  if (!hasBanner && !hasThumbnail) return null;
+  
+  // If only one image, show simple layout
+  if ((hasBanner && !hasThumbnail) || (!hasBanner && hasThumbnail)) {
+    return null; // Banner already shown at top, no need for extra gallery
+  }
+  
+  // Both images exist - show gallery
+  return (
+    <Card className="border-0 shadow-lg rounded-3xl overflow-hidden">
+      <CardContent className="p-6 md:p-8">
+        <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <ImageIcon className="w-5 h-5 text-violet-600" />
+          Hình ảnh sự kiện
+        </h2>
+        <div className="grid grid-cols-2 gap-4">
+          {/* Banner Image */}
+          {hasBanner && (
+            <div 
+              className="relative aspect-video rounded-xl overflow-hidden cursor-pointer group"
+              onClick={() => onImageClick(0)}
+            >
+              <img 
+                src={bannerImageUrl}
+                alt={`${eventName} - Banner`}
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+              <span className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                Banner
+              </span>
+            </div>
+          )}
+          
+          {/* Thumbnail Image */}
+          {hasThumbnail && (
+            <div 
+              className="relative aspect-video rounded-xl overflow-hidden cursor-pointer group"
+              onClick={() => onImageClick(hasBanner ? 1 : 0)}
+            >
+              <img 
+                src={thumbnailUrl}
+                alt={`${eventName} - Thumbnail`}
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+              <span className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                Thumbnail
+              </span>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 // Loading State
 const LoadingState = () => (
   <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -172,6 +279,10 @@ export default function EventDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLiked, setIsLiked] = useState(false);
   const [selectedTicketCount, setSelectedTicketCount] = useState(1);
+  
+  // Image gallery state
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   // Fetch event details bằng slug
   useEffect(() => {
@@ -199,11 +310,40 @@ export default function EventDetailPage() {
   if (error || !event) return <ErrorState message={error || "Đã có lỗi xảy ra"} />;
 
   const { day, month, year, time, weekday, monthName } = formatDate(event.eventDate);
-  const displayImage = event.bannerImageUrl || event.thumbnailUrl || 
-    "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2070&auto=format&fit=crop";
   
-  const artists = event.artists || getMockArtists(event.name);
+  // Determine which image to show in banner - prefer banner, fallback to thumbnail, then default
+  const hasBannerImage = event.bannerImageUrl && event.bannerImageUrl.trim() !== '';
+  const hasThumbnailImage = event.thumbnailUrl && event.thumbnailUrl.trim() !== '';
+  const displayImage = hasBannerImage 
+    ? event.bannerImageUrl 
+    : hasThumbnailImage 
+      ? event.thumbnailUrl 
+      : DEFAULT_EVENT_IMAGE;
+  
+  // Build gallery images array
+  const galleryImages: { url: string; label: string }[] = [];
+  if (hasBannerImage) {
+    galleryImages.push({ url: event.bannerImageUrl!, label: 'Banner' });
+  }
+  if (hasThumbnailImage) {
+    galleryImages.push({ url: event.thumbnailUrl!, label: 'Thumbnail' });
+  }
+  
   const totalPrice = event.ticketPrice * selectedTicketCount;
+  
+  // Handle gallery image click
+  const handleGalleryImageClick = (index: number) => {
+    setCurrentImageIndex(index);
+    setIsGalleryOpen(true);
+  };
+  
+  // Handle banner click to open gallery
+  const handleBannerClick = () => {
+    if (galleryImages.length > 0) {
+      setCurrentImageIndex(0);
+      setIsGalleryOpen(true);
+    }
+  };
 
   // Check if event is active and selling
   const isEventActive = event.isActive && event.status === 'ACTIVE';
@@ -245,17 +385,37 @@ export default function EventDetailPage() {
       <Header activeNav="events" />
 
       <main className="flex-1">
+        {/* Image Gallery Modal */}
+        <ImageGalleryModal
+          images={galleryImages}
+          currentIndex={currentImageIndex}
+          isOpen={isGalleryOpen}
+          onClose={() => setIsGalleryOpen(false)}
+          onNavigate={setCurrentImageIndex}
+        />
+
         {/* Banner Section */}
-        <section className="relative h-[300px] md:h-[450px] overflow-hidden">
+        <section 
+          className={`relative h-[300px] md:h-[450px] overflow-hidden ${galleryImages.length > 0 ? 'cursor-pointer' : ''}`}
+          onClick={handleBannerClick}
+        >
           <img 
             src={displayImage} 
             alt={event.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-transform duration-500 hover:scale-[1.02]"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
           
+          {/* Click hint for gallery */}
+          {galleryImages.length > 0 && (
+            <div className="absolute bottom-6 right-6 z-10 bg-black/60 text-white text-sm px-3 py-1.5 rounded-full flex items-center gap-2 backdrop-blur-sm pointer-events-none">
+              <ImageIcon className="w-4 h-4" />
+              <span>{galleryImages.length} hình ảnh</span>
+            </div>
+          )}
+          
           {/* Back Button */}
-          <div className="absolute top-4 left-4 z-10">
+          <div className="absolute top-4 left-4 z-10" onClick={(e) => e.stopPropagation()}>
             <Link href="/">
               <Button variant="outline" size="sm" className="bg-white/90 hover:bg-white backdrop-blur-sm rounded-full">
                 <ChevronLeft className="w-4 h-4 mr-1" />
@@ -270,7 +430,7 @@ export default function EventDetailPage() {
               variant="outline" 
               size="icon" 
               className="bg-white/90 hover:bg-white backdrop-blur-sm rounded-full"
-              onClick={handleShare}
+              onClick={(e) => { e.stopPropagation(); handleShare(); }}
             >
               <Share2 className="w-4 h-4" />
             </Button>
@@ -278,14 +438,14 @@ export default function EventDetailPage() {
               variant="outline" 
               size="icon" 
               className={`backdrop-blur-sm rounded-full transition-colors ${isLiked ? 'bg-red-500 text-white hover:bg-red-600 border-red-500' : 'bg-white/90 hover:bg-white'}`}
-              onClick={() => setIsLiked(!isLiked)}
+              onClick={(e) => { e.stopPropagation(); setIsLiked(!isLiked); }}
             >
               <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
             </Button>
           </div>
 
           {/* Category Badge */}
-          <div className="absolute bottom-6 left-6 z-10">
+          <div className="absolute bottom-6 left-6 z-10" onClick={(e) => e.stopPropagation()}>
             <span className="bg-violet-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg">
               {event.category || "Sự kiện"}
             </span>
@@ -367,22 +527,14 @@ Hãy đặt vé ngay để không bỏ lỡ cơ hội tham gia sự kiện này!
                 </CardContent>
               </Card>
 
-              {/* Artists/Performers Section */}
-              {artists.length > 0 && (
-                <Card className="border-0 shadow-lg rounded-3xl">
-                  <CardContent className="p-6 md:p-8">
-                    <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-                      <Star className="w-5 h-5 text-violet-600" />
-                      Nghệ sĩ / Diễn giả
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {artists.map((artist, index) => (
-                        <ArtistCard key={artist.id || index} artist={artist} />
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              {/* Event Images Gallery - only shows if both banner and thumbnail exist */}
+              <EventImagesGallery
+                bannerImageUrl={event.bannerImageUrl}
+                thumbnailUrl={event.thumbnailUrl}
+                eventName={event.name}
+                onImageClick={handleGalleryImageClick}
+              />
+
 
               {/* Terms and Conditions */}
               {event.termsAndConditions && (

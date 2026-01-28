@@ -85,5 +85,25 @@ public class NotificationMessage {
         notification.setSeverity("INFO");
         return notification;
     }
+
+    /**
+     * Notification khi trạng thái sự kiện thay đổi
+     * Gửi tới organizer để thông báo cập nhật
+     */
+    public static NotificationMessage eventStatusChanged(UUID eventId, String newStatus, String message) {
+        NotificationMessage notification = new NotificationMessage();
+        notification.setType("EVENT_STATUS");
+        notification.setTitle("Cập nhật trạng thái sự kiện");
+        notification.setMessage(message);
+        
+        Map<String, Object> data = new HashMap<>();
+        data.put("eventId", eventId.toString());
+        data.put("newStatus", newStatus);
+        notification.setData(data);
+        
+        notification.setTimestamp(LocalDateTime.now());
+        notification.setSeverity("INFO");
+        return notification;
+    }
 }
 

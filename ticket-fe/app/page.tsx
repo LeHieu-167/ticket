@@ -142,21 +142,6 @@ const HeroSection = ({ searchKeyword, onSearchChange, onSearch }: HeroSectionPro
           </Button>
         </div>
 
-        {/* Quick Stats */}
-        <div className="flex flex-wrap justify-center gap-8 mt-12 text-white/80">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-white">1000+</div>
-            <div className="text-sm">Sự kiện</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-white">500K+</div>
-            <div className="text-sm">Người dùng</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-white">50+</div>
-            <div className="text-sm">Thành phố</div>
-          </div>
-        </div>
       </div>
     </div>
   </section>

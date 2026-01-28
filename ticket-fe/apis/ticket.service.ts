@@ -12,6 +12,34 @@ export type TicketStatus =
   | "EXPIRED";    // Hết hạn
 
 /**
+ * Response loại vé từ backend
+ */
+export interface TicketTypeResponse {
+  id: number;
+  eventId: string;
+  eventName?: string;
+  name: string;
+  description?: string;
+  price: number;
+  totalQuantity: number;
+  availableQuantity: number;
+  soldQuantity?: number;
+  // Seating configuration
+  seatingType?: string;       // ZONE_ONLY, ZONE_WITH_ROW, FULL_SEAT
+  zoneName?: string;
+  zoneDescription?: string;
+  rowLabels?: string;
+  seatsPerRow?: number;
+  allowSeatSelection?: boolean;
+  // Display
+  colorCode?: string;
+  displayOrder?: number;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
  * Response chi tiết vé
  * Mapping từ backend TicketResponse DTO
  */
@@ -115,6 +143,26 @@ function transformTicketResponse(ticket: any): TicketResponse {
 // ==================== TICKET SERVICE ====================
 
 export const ticketService = {
+  // ==================== TICKET TYPE METHODS ====================
+
+  /**
+   * Lấy danh sách loại vé của sự kiện
+   */
+  async getTicketTypesByEvent(eventId: string): Promise<TicketTypeResponse[]> {
+    const response = await api.get<TicketTypeResponse[]>(`/api/tickets/types/event/${eventId}`);
+    return response.data;
+  },
+
+  /**
+   * Lấy danh sách loại vé còn khả dụng của sự kiện
+   */
+  async getAvailableTicketTypes(eventId: string): Promise<TicketTypeResponse[]> {
+    const response = await api.get<TicketTypeResponse[]>(`/api/tickets/types/event/${eventId}/available`);
+    return response.data;
+  },
+
+  // ==================== TICKET METHODS ====================
+
   /**
    * Lấy danh sách vé của tôi
    */

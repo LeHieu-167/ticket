@@ -408,9 +408,18 @@ public class TicketService {
 
         // Kiểm tra sự kiện đã bắt đầu chưa (cho phép check-in trước 2 giờ)
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime eventDate = ticket.getEvent().getEventDate();
+        Event event = ticket.getEvent();
+        LocalDateTime eventDate = event.getEventDate();
         if (now.isBefore(eventDate.minusHours(2))) {
             throw new RuntimeException("Chưa đến thời gian check-in. Sự kiện bắt đầu lúc: " + eventDate);
+        }
+
+        // Kiểm tra sự kiện đã kết thúc chưa (trạng thái COMPLETED hoặc đã qua eventEndDate)
+        if (event.getStatus() == EventStatus.COMPLETED) {
+            throw new RuntimeException("Vé đã hết hạn. Sự kiện đã kết thúc.");
+        }
+        if (event.getEventEndDate() != null && now.isAfter(event.getEventEndDate())) {
+            throw new RuntimeException("Vé đã hết hạn. Sự kiện kết thúc lúc: " + event.getEventEndDate());
         }
 
         // Cập nhật trạng thái
@@ -419,7 +428,7 @@ public class TicketService {
         ticket.setCheckedInBy(staffId);
 
         ticket = ticketRepository.save(ticket);
-        log.info("🎉 Check-in thành công vé {} cho sự kiện {}", cleanedCode, ticket.getEvent().getName());
+        log.info("Check-in thành công vé {} cho sự kiện {}", cleanedCode, event.getName());
 
         return convertToResponse(ticket);
     }
@@ -467,10 +476,25 @@ public class TicketService {
 
         // Kiểm tra sự kiện đã bắt đầu chưa (cho phép check-in trước 2 giờ)
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime eventDate = ticket.getEvent().getEventDate();
+        Event event = ticket.getEvent();
+        LocalDateTime eventDate = event.getEventDate();
         if (now.isBefore(eventDate.minusHours(2))) {
             return CheckInResponse.failure(
                 "Chưa đến thời gian check-in. Sự kiện bắt đầu lúc: " + eventDate,
+                ticket
+            );
+        }
+
+        // Kiểm tra sự kiện đã kết thúc chưa (trạng thái COMPLETED hoặc đã qua eventEndDate)
+        if (event.getStatus() == EventStatus.COMPLETED) {
+            return CheckInResponse.failure(
+                "Vé đã hết hạn. Sự kiện đã kết thúc.",
+                ticket
+            );
+        }
+        if (event.getEventEndDate() != null && now.isAfter(event.getEventEndDate())) {
+            return CheckInResponse.failure(
+                "Vé đã hết hạn. Sự kiện kết thúc lúc: " + event.getEventEndDate(),
                 ticket
             );
         }
@@ -481,7 +505,7 @@ public class TicketService {
         ticket.setCheckedInBy(staffId);
 
         ticket = ticketRepository.save(ticket);
-        log.info("🎉 Check-in thành công vé {} cho sự kiện {}", cleanedCode, ticket.getEvent().getName());
+        log.info("Check-in thành công vé {} cho sự kiện {}", cleanedCode, event.getName());
 
         // Gửi notification realtime tới user sở hữu vé
         try {

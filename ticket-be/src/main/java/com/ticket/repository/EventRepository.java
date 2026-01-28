@@ -5,6 +5,7 @@ import com.ticket.entity.EventStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -60,5 +61,21 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
      * Lấy danh sách sự kiện của organizer, loại trừ trạng thái DELETED
      */
     List<Event> findByOrganizerIdAndStatusNotOrderByCreatedAtDesc(UUID organizerId, EventStatus status);
+
+    // ==================== EVENT SCHEDULER ====================
+
+    /**
+     * Tìm các sự kiện đã kết thúc về mặt thời gian nhưng trạng thái chưa cập nhật.
+     * Dùng cho scheduler tự động chuyển trạng thái sang COMPLETED.
+     * Điều kiện: eventEndDate < now AND status IN (ACTIVE, STOP_SELLING)
+     */
+    List<Event> findByEventEndDateBeforeAndStatusIn(LocalDateTime now, List<EventStatus> statuses);
+
+    /**
+     * Tìm các sự kiện đã qua ngày diễn ra (eventDate) nhưng chưa có eventEndDate.
+     * Fallback cho các sự kiện không có thời gian kết thúc cụ thể.
+     * Giả định sự kiện kết thúc sau 24h kể từ eventDate.
+     */
+    List<Event> findByEventDateBeforeAndEventEndDateIsNullAndStatusIn(LocalDateTime threshold, List<EventStatus> statuses);
 }
 
