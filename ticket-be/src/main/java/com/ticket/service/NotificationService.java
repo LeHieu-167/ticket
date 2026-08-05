@@ -81,4 +81,12 @@ public class NotificationService {
         NotificationMessage notification = NotificationMessage.systemMessage(title, message, severity);
         broadcastToAll(notification);
     }
+
+    /**
+     * Gửi notification về thay đổi trạng thái sự kiện cho organizer
+     */
+    public void notifyEventStatusChanged(UUID organizerId, UUID eventId, String newStatus, String message) {
+        NotificationMessage notification = NotificationMessage.eventStatusChanged(eventId, newStatus, message);
+        sendToUser(organizerId, notification);
+    }
 }

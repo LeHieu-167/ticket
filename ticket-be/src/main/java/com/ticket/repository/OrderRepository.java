@@ -50,6 +50,12 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     List<Order> findExpiredConfirmedOrders(java.time.LocalDateTime now);
 
     /**
+     * Tìm đơn hàng CONFIRMED nhưng PaymentStatus = FAILED (thanh toán thất bại, cần hoàn vé)
+     */
+    @org.springframework.data.jpa.repository.Query("SELECT o FROM Order o WHERE o.status = 'CONFIRMED' AND o.paymentStatus = 'FAILED'")
+    List<Order> findConfirmedOrdersWithFailedPayment();
+
+    /**
      * Tìm đơn hàng theo mã giao dịch thanh toán (VNPay TxnRef)
      */
     java.util.Optional<Order> findByPaymentTransactionId(String paymentTransactionId);

@@ -7,7 +7,7 @@ import {
   Ticket, LayoutDashboard, PlusCircle, QrCode, LogOut,
   Upload, Image as ImageIcon, FileJson, MapPin, Calendar, DollarSign,
   Users, FileText, CheckCircle, AlertCircle, ChevronLeft, Loader2, Package,
-  Plus, Trash2
+  Plus, Trash2, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import eventService, { EventRequest } from "@/apis/event.service";
+import fileService from "@/apis/file.service";
 import { useToast } from "@/hooks/use-toast";
 
 // --- COMPONENTS ---
@@ -78,7 +79,134 @@ const Sidebar = () => {
   );
 };
 
-// File Upload Component
+// Image Upload Component with Preview and Progress
+interface ImageUploadProps {
+  label: string;
+  imageUrl?: string;
+  isUploading?: boolean;
+  uploadProgress?: number;
+  error?: string;
+  onFileSelect: (file: File) => void;
+  onRemove?: () => void;
+  helperText?: string;
+}
+
+const ImageUploadBox = ({ 
+  label, 
+  imageUrl, 
+  isUploading, 
+  uploadProgress = 0, 
+  error,
+  onFileSelect, 
+  onRemove,
+  helperText 
+}: ImageUploadProps) => {
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file
+      const validation = fileService.validateFile(file, 5);
+      if (!validation.isValid) {
+        alert(validation.error);
+        return;
+      }
+      onFileSelect(file);
+    }
+  };
+
+  const handleClick = () => {
+    if (!isUploading && !imageUrl) {
+      inputRef.current?.click();
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-sm font-medium text-slate-700">{label}</Label>
+      
+      {/* Show preview if image uploaded */}
+      {imageUrl ? (
+        <div className="relative w-full h-40 rounded-2xl overflow-hidden border-2 border-violet-300 bg-slate-100">
+          <img 
+            src={imageUrl} 
+            alt={label}
+            className="w-full h-full object-cover"
+          />
+          {/* Remove button */}
+          {onRemove && (
+            <button
+              type="button"
+              onClick={onRemove}
+              className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+          {/* Success indicator */}
+          <div className="absolute bottom-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+            <CheckCircle className="w-3 h-3" />
+            Đã tải lên
+          </div>
+        </div>
+      ) : (
+        <label 
+          onClick={handleClick}
+          className={`flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-2xl cursor-pointer transition-all
+            ${isUploading 
+              ? 'border-violet-400 bg-violet-50' 
+              : error 
+                ? 'border-red-300 bg-red-50'
+                : 'border-slate-300 hover:bg-slate-50 hover:border-violet-400'
+            }`}
+        >
+          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+            {isUploading ? (
+              <>
+                <Loader2 className="w-8 h-8 text-violet-600 animate-spin" />
+                <p className="mt-2 text-sm text-violet-600 font-medium">
+                  Đang tải lên... {uploadProgress}%
+                </p>
+                {/* Progress bar */}
+                <div className="w-32 h-2 bg-violet-200 rounded-full mt-2 overflow-hidden">
+                  <div 
+                    className="h-full bg-violet-600 transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </>
+            ) : error ? (
+              <>
+                <AlertCircle className="w-8 h-8 text-red-500" />
+                <p className="mt-2 text-sm text-red-600 font-medium">{error}</p>
+                <p className="text-xs text-red-400 mt-1">Click để thử lại</p>
+              </>
+            ) : (
+              <>
+                <Upload className="w-8 h-8 text-slate-400" />
+                <p className="mt-2 text-sm text-slate-500">
+                  <span className="font-semibold text-violet-600">Click để tải lên</span> hoặc kéo thả
+                </p>
+                {helperText && <p className="text-xs text-slate-400 mt-1">{helperText}</p>}
+              </>
+            )}
+          </div>
+          <input 
+            ref={inputRef}
+            type="file" 
+            className="hidden" 
+            accept="image/*" 
+            onChange={handleChange}
+            disabled={isUploading}
+          />
+        </label>
+      )}
+    </div>
+  );
+};
+
+// Legacy File Upload Component (for seat map JSON)
 interface FileUploadProps {
   label: string;
   accept: string;
@@ -168,9 +296,21 @@ export default function CreateEventPage() {
   // State cho validation lỗi loại vé
   const [ticketTypeErrors, setTicketTypeErrors] = useState<string | null>(null);
 
-  // File states
-  const [bannerFile, setBannerFile] = useState<File | null>(null);
-  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  // Image upload states
+  const [bannerUrl, setBannerUrl] = useState<string>("");
+  const [thumbnailUrl, setThumbnailUrl] = useState<string>("");
+  const [mapImageUrl, setMapImageUrl] = useState<string>("");
+  const [bannerUploading, setBannerUploading] = useState(false);
+  const [thumbnailUploading, setThumbnailUploading] = useState(false);
+  const [mapImageUploading, setMapImageUploading] = useState(false);
+  const [bannerProgress, setBannerProgress] = useState(0);
+  const [thumbnailProgress, setThumbnailProgress] = useState(0);
+  const [mapImageProgress, setMapImageProgress] = useState(0);
+  const [bannerError, setBannerError] = useState<string | null>(null);
+  const [thumbnailError, setThumbnailError] = useState<string | null>(null);
+  const [mapImageError, setMapImageError] = useState<string | null>(null);
+
+  // Seat map states
   const [seatMapImage, setSeatMapImage] = useState<File | null>(null);
   const [seatMapJson, setSeatMapJson] = useState<File | null>(null);
   const [hasSeatMap, setHasSeatMap] = useState(false);
@@ -252,6 +392,111 @@ export default function CreateEventPage() {
     return true;
   };
 
+  // Handle banner image upload
+  const handleBannerUpload = async (file: File) => {
+    setBannerError(null);
+    setBannerUploading(true);
+    setBannerProgress(0);
+    
+    try {
+      const response = await fileService.uploadFile(file, 'banner', (progress) => {
+        setBannerProgress(progress);
+      });
+      
+      setBannerUrl(response.url);
+      toast.success('Tải ảnh banner thành công!');
+    } catch (error: any) {
+      console.error('Error uploading banner:', error);
+      setBannerError('Lỗi tải ảnh. Vui lòng thử lại.');
+      toast.error('Không thể tải ảnh banner');
+    } finally {
+      setBannerUploading(false);
+    }
+  };
+
+  // Handle thumbnail image upload
+  const handleThumbnailUpload = async (file: File) => {
+    setThumbnailError(null);
+    setThumbnailUploading(true);
+    setThumbnailProgress(0);
+    
+    try {
+      const response = await fileService.uploadFile(file, 'thumbnail', (progress) => {
+        setThumbnailProgress(progress);
+      });
+      
+      setThumbnailUrl(response.url);
+      toast.success('Tải ảnh thumbnail thành công!');
+    } catch (error: any) {
+      console.error('Error uploading thumbnail:', error);
+      setThumbnailError('Lỗi tải ảnh. Vui lòng thử lại.');
+      toast.error('Không thể tải ảnh thumbnail');
+    } finally {
+      setThumbnailUploading(false);
+    }
+  };
+
+  // Handle remove banner
+  const handleRemoveBanner = async () => {
+    if (bannerUrl) {
+      try {
+        await fileService.deleteFileByUrl(bannerUrl);
+      } catch (error) {
+        console.error('Error deleting banner:', error);
+      }
+    }
+    setBannerUrl("");
+    setBannerError(null);
+  };
+
+  // Handle remove thumbnail
+  const handleRemoveThumbnail = async () => {
+    if (thumbnailUrl) {
+      try {
+        await fileService.deleteFileByUrl(thumbnailUrl);
+      } catch (error) {
+        console.error('Error deleting thumbnail:', error);
+      }
+    }
+    setThumbnailUrl("");
+    setThumbnailError(null);
+  };
+
+  // Handle map image upload
+  const handleMapImageUpload = async (file: File) => {
+    setMapImageError(null);
+    setMapImageUploading(true);
+    setMapImageProgress(0);
+    
+    try {
+      const response = await fileService.uploadFile(file, 'map', (progress) => {
+        setMapImageProgress(progress);
+      });
+      
+      setMapImageUrl(response.url);
+      toast.success('Tải ảnh sơ đồ thành công!');
+    } catch (error: any) {
+      console.error('Error uploading map image:', error);
+      setMapImageError('Lỗi tải ảnh. Vui lòng thử lại.');
+      toast.error('Không thể tải ảnh sơ đồ');
+    } finally {
+      setMapImageUploading(false);
+    }
+  };
+
+  // Handle remove map image
+  const handleRemoveMapImage = async () => {
+    if (mapImageUrl) {
+      try {
+        await fileService.deleteFileByUrl(mapImageUrl);
+      } catch (error) {
+        console.error('Error deleting map image:', error);
+      }
+    }
+    setMapImageUrl("");
+    setMapImageError(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
@@ -274,21 +519,23 @@ export default function CreateEventPage() {
       const totalTickets = formData.ticketTypes?.reduce((sum, t) => sum + t.totalQuantity, 0) || 0;
       const minPrice = Math.min(...(formData.ticketTypes?.map(t => t.price) || [0]));
 
+      // Build event data with uploaded image URLs
       const eventData: EventRequest = {
         ...formData,
         ticketPrice: minPrice,
         availableTickets: totalTickets,
+        bannerImageUrl: bannerUrl || undefined,
+        thumbnailUrl: thumbnailUrl || undefined,
+        mapImageUrl: mapImageUrl || undefined,
       };
 
-      // In real app, upload files first, then create event
       console.log("Event data:", eventData);
-      // console.log("Seat map JSON:", SAMPLE_SEAT_MAP_JSON);
       
       // Debug: Log token trước khi gọi API
       const token = localStorage.getItem("accessToken");
-      const user = localStorage.getItem("user");
       console.log("Token exists:", !!token);
-      console.log("User data:", user);
+      console.log("Banner URL:", bannerUrl);
+      console.log("Thumbnail URL:", thumbnailUrl);
 
       // Call API to create event (ticket types đã được xử lý trong backend)
       // Backend sẽ tự động tạo ticket types từ eventData.ticketTypes
@@ -302,9 +549,14 @@ export default function CreateEventPage() {
         console.error("Error response:", apiError.response?.data);
         console.error("Error status:", apiError.response?.status);
         
-        // Nếu lỗi 401 - hướng dẫn user đăng nhập lại với role ORGANIZER
+        // Nếu lỗi 400 - thông tin sự kiện không chính xác
+        if (apiError.response?.status === 400) {
+          throw new Error("Thông tin sự kiện không chính xác, vui lòng thử lại.");
+        }
+        
+        // Nếu lỗi 401 - thông tin sự kiện không chính xác hoặc phiên hết hạn
         if (apiError.response?.status === 401) {
-          throw new Error("Phiên đăng nhập hết hạn hoặc bạn không có quyền. Vui lòng đăng nhập lại với tài khoản Nhà tổ chức (Organizer).");
+          throw new Error("Thông tin sự kiện không chính xác, vui lòng thử lại.");
         }
         
         // Nếu lỗi 403 - không có quyền
@@ -401,6 +653,27 @@ export default function CreateEventPage() {
                   placeholder="Mô tả chi tiết về sự kiện..."
                   rows={4}
                   className="mt-1"
+                />
+              </div>
+
+              {/* Map Image Upload Section */}
+              <div className="p-4 rounded-xl border border-slate-200">
+                <div className="flex items-center gap-2 mb-3">
+                  <MapPin className="w-5 h-5 text-violet-600" />
+                  <h3 className="text-sm font-semibold text-slate-800">Sơ đồ địa điểm / Bản đồ</h3>
+                </div>
+                <p className="text-sm text-slate-500 mb-4">
+                  Tải lên ảnh sơ đồ địa điểm tổ chức sự kiện.
+                </p>
+                <ImageUploadBox
+                  label="Ảnh sơ đồ / Bản đồ"
+                  imageUrl={mapImageUrl}
+                  isUploading={mapImageUploading}
+                  uploadProgress={mapImageProgress}
+                  error={mapImageError || undefined}
+                  onFileSelect={handleMapImageUpload}
+                  onRemove={handleRemoveMapImage}
+                  helperText="PNG, JPG tối đa 5MB - Khuyến nghị ảnh rõ ràng, có chú thích"
                 />
               </div>
 
@@ -608,82 +881,45 @@ export default function CreateEventPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ImageIcon className="w-5 h-5 text-violet-600" />
-                Hình ảnh
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FileUpload
-                  label="Ảnh banner (1200x600)"
-                  accept="image/*"
-                  icon={<Upload className="w-8 h-8 text-slate-400" />}
-                  fileName={bannerFile?.name}
-                  onFileSelect={setBannerFile}
-                  helperText="PNG, JPG tối đa 5MB"
-                />
-                <FileUpload
-                  label="Ảnh thumbnail (600x400)"
-                  accept="image/*"
-                  icon={<Upload className="w-8 h-8 text-slate-400" />}
-                  fileName={thumbnailFile?.name}
-                  onFileSelect={setThumbnailFile}
-                  helperText="PNG, JPG tối đa 5MB"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Seat Map */}
-          <Card className="border-0 shadow-lg rounded-2xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-violet-600" />
-                Sơ đồ ghế (Tùy chọn)
+                Hình ảnh sự kiện
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="hasSeatMap"
-                  checked={hasSeatMap}
-                  onChange={(e) => setHasSeatMap(e.target.checked)}
-                  className="w-4 h-4 text-violet-600 rounded"
+              <p className="text-sm text-slate-500">
+                Tải lên hình ảnh để sự kiện của bạn nổi bật hơn. Ảnh sẽ được lưu trữ trên đám mây.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ImageUploadBox
+                  label="Ảnh banner (1200x600)"
+                  imageUrl={bannerUrl}
+                  isUploading={bannerUploading}
+                  uploadProgress={bannerProgress}
+                  error={bannerError || undefined}
+                  onFileSelect={handleBannerUpload}
+                  onRemove={handleRemoveBanner}
+                  helperText="PNG, JPG tối đa 5MB"
                 />
-                <Label htmlFor="hasSeatMap" className="cursor-pointer">
-                  Sự kiện này có sơ đồ ghế ngồi
-                </Label>
+                <ImageUploadBox
+                  label="Ảnh thumbnail (600x400)"
+                  imageUrl={thumbnailUrl}
+                  isUploading={thumbnailUploading}
+                  uploadProgress={thumbnailProgress}
+                  error={thumbnailError || undefined}
+                  onFileSelect={handleThumbnailUpload}
+                  onRemove={handleRemoveThumbnail}
+                  helperText="PNG, JPG tối đa 5MB"
+                />
               </div>
-
-              {hasSeatMap && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                  <FileUpload
-                    label="Ảnh sơ đồ ghế"
-                    accept="image/*"
-                    icon={<ImageIcon className="w-8 h-8 text-slate-400" />}
-                    fileName={seatMapImage?.name}
-                    onFileSelect={setSeatMapImage}
-                    helperText="Ảnh sơ đồ venue"
-                  />
-                  <FileUpload
-                    label="File JSON tọa độ ghế"
-                    accept=".json"
-                    icon={<FileJson className="w-8 h-8 text-slate-400" />}
-                    fileName={seatMapJson?.name}
-                    onFileSelect={setSeatMapJson}
-                    helperText="File JSON chứa tọa độ ghế"
-                  />
-                </div>
-              )}
-
-              {hasSeatMap && (
-                <div className="p-4 bg-blue-50 rounded-xl">
-                  <p className="text-sm font-medium text-blue-800 mb-2">Mẫu file JSON tọa độ ghế:</p>
-                  <pre className="text-xs text-blue-600 overflow-x-auto bg-blue-100 p-3 rounded-lg">
-                    {/* {JSON.stringify(SAMPLE_SEAT_MAP_JSON, null, 2)} */}
-                  </pre>
-                </div>
-              )}
+              
+              {/* Tips */}
+              <div className="p-4 bg-blue-50 rounded-xl">
+                <p className="text-sm font-medium text-blue-800 mb-2">💡 Gợi ý:</p>
+                <ul className="text-xs text-blue-600 space-y-1 list-disc list-inside">
+                  <li><strong>Banner</strong>: Ảnh ngang, hiển thị ở đầu trang chi tiết sự kiện</li>
+                  <li><strong>Thumbnail</strong>: Ảnh nhỏ, hiển thị trong danh sách sự kiện</li>
+                  <li>Sử dụng ảnh chất lượng cao để thu hút người xem</li>
+                </ul>
+              </div>
             </CardContent>
           </Card>
 
@@ -716,13 +952,18 @@ export default function CreateEventPage() {
             </Link>
             <Button 
               type="submit" 
-              disabled={isSubmitting}
+              disabled={isSubmitting || bannerUploading || thumbnailUploading || mapImageUploading}
               className="bg-violet-600 hover:bg-violet-700 rounded-xl px-8"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Đang tạo...
+                </>
+              ) : bannerUploading || thumbnailUploading || mapImageUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Đang tải ảnh...
                 </>
               ) : (
                 <>

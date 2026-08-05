@@ -80,6 +80,7 @@ public class SecurityConfig {
                         .requestMatchers("/ws/**").permitAll() // WebSocket endpoint
                         .requestMatchers("/api/payment/vnpay-return").permitAll() // VNPay callback (GET)
                         .requestMatchers("/api/payment/vnpay-ipn").permitAll() // VNPay IPN callback (POST)
+                        .requestMatchers(HttpMethod.POST, "/api/orders/beacon-cancel").permitAll() // Beacon cancel (token trong body)
                         .anyRequest().authenticated()
                 );
 

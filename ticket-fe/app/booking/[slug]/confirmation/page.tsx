@@ -1,15 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { 
   Ticket, CheckCircle, Download, Mail, Calendar, MapPin, 
-  Clock, Copy, Share2, Home, Sparkles, Loader2, AlertCircle, ChevronDown, ChevronUp
+  Clock, Copy, Share2, Home, Sparkles, Loader2, AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import ticketService, { TicketResponse, OrderWithTicketsResponse } from "@/apis/ticket.service";
+import TicketCarousel from "@/components/tickets/TicketCarousel";
+import { clearCurrentOrderId } from "@/hooks/use-auto-cancel-order";
 
 // --- UTILS ---
 
@@ -73,113 +75,11 @@ const Confetti = () => (
   </div>
 );
 
-// Single Ticket Card with QR Code
-interface TicketCardProps {
-  ticket: TicketResponse;
-  index: number;
-  isExpanded: boolean;
-  onToggle: () => void;
-  onDownload: (ticketCode: string) => void;
-}
-
-const TicketCard = ({ ticket, index, isExpanded, onToggle, onDownload }: TicketCardProps) => {
-  const qrImageSrc = ticket.qrCodeDataUri || 
-    (ticket.qrCodeBase64 ? ticketService.createDataUri(ticket.qrCodeBase64) : null);
-
-  return (
-    <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-slate-100">
-      {/* Header - Always visible */}
-      <button 
-        onClick={onToggle}
-        className="w-full p-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
-      >
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-bold">
-            #{index + 1}
-          </div>
-          <div className="text-left">
-            <p className="font-bold text-slate-900">{ticket.ticketType || 'Vé'}</p>
-            <p className="text-sm text-slate-500 font-mono">{ticket.ticketCode}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className={`px-3 py-1 rounded-full text-xs font-bold
-            ${ticket.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 
-              ticket.status === 'USED' ? 'bg-slate-100 text-slate-600' : 'bg-red-100 text-red-700'}`}>
-            {ticket.status === 'ACTIVE' ? 'Còn hiệu lực' : 
-             ticket.status === 'USED' ? 'Đã sử dụng' : 'Hết hạn'}
-          </span>
-          {isExpanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
-        </div>
-      </button>
-
-      {/* Expanded Content with QR Code */}
-      {isExpanded && (
-        <div className="border-t border-slate-100">
-          {/* QR Code Section */}
-          <div className="p-6 bg-gradient-to-b from-slate-50 to-white flex flex-col items-center">
-            {qrImageSrc ? (
-              <div className="bg-white p-4 rounded-2xl shadow-inner border-2 border-slate-100">
-                <img 
-                  src={qrImageSrc} 
-                  alt={`QR Code - ${ticket.ticketCode}`}
-                  className="w-48 h-48 object-contain"
-                />
-              </div>
-            ) : (
-              <div className="w-48 h-48 bg-slate-100 rounded-2xl flex items-center justify-center">
-                <div className="text-center text-slate-400">
-                  <Ticket className="w-12 h-12 mx-auto mb-2" />
-                  <p className="text-sm">Đang tải QR...</p>
-                </div>
-              </div>
-            )}
-            
-            {/* Ticket Code Text - Backup for scanning issues */}
-            <div className="mt-4 text-center">
-              <p className="text-xs text-slate-500 mb-1">Mã vé (nhập tay nếu cần)</p>
-              <p className="font-mono text-lg font-bold text-slate-900 bg-slate-100 px-4 py-2 rounded-xl">
-                {ticket.ticketCode}
-              </p>
-            </div>
-          </div>
-
-          {/* Ticket Details */}
-          <div className="p-4 space-y-3">
-            {ticket.seatInfo && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500">Ghế</span>
-                <span className="font-medium text-slate-900">{ticket.seatInfo}</span>
-              </div>
-            )}
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-500">Giá vé</span>
-              <span className="font-medium text-violet-600">{formatCurrency(ticket.price)}</span>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="p-4 border-t border-slate-100 flex gap-3">
-            <Button 
-              variant="outline" 
-              className="flex-1 rounded-xl"
-              onClick={() => onDownload(ticket.ticketCode)}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Tải QR Code
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 // --- MAIN PAGE ---
-export default function ConfirmationPage() {
-  const params = useParams();
+export default function ConfirmationPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params);
   const searchParams = useSearchParams();
-  const eventId = params.eventId as string;
   const orderId = searchParams.get('orderId');
 
   const [orderData, setOrderData] = useState<any>(null);
@@ -187,12 +87,15 @@ export default function ConfirmationPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showConfetti, setShowConfetti] = useState(true);
   const [copied, setCopied] = useState(false);
-  const [expandedTickets, setExpandedTickets] = useState<Set<number>>(new Set([0])); // First ticket expanded by default
-  const [downloadingTicket, setDownloadingTicket] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
+    
+    // Xóa orderId khỏi sessionStorage vì đã thanh toán thành công
+    // Điều này ngăn auto-cancel kích hoạt nhầm
+    clearCurrentOrderId();
+    console.log('🎉 Thanh toán thành công - đã xóa orderId khỏi auto-cancel');
   }, []);
 
   useEffect(() => {
@@ -221,7 +124,7 @@ export default function ConfirmationPage() {
             id: `ticket-${orderId}-001`,
             ticketCode: `TICKET-${orderId}-001`,
             orderId: orderId || 'mock-order-id',
-            eventId: eventId,
+            eventId: slug,
             eventName: orderData?.eventName || 'Sự kiện',
             eventDate: new Date().toISOString(),
             eventLocation: 'Hà Nội',
@@ -243,7 +146,7 @@ export default function ConfirmationPage() {
     // Hide confetti after 5 seconds
     const timer = setTimeout(() => setShowConfetti(false), 5000);
     return () => clearTimeout(timer);
-  }, [orderId, eventId]);
+  }, [orderId, slug]);
 
   const handleCopyOrderId = () => {
     if (orderId) {
@@ -267,20 +170,7 @@ export default function ConfirmationPage() {
     }
   };
 
-  const handleToggleTicket = (index: number) => {
-    setExpandedTickets(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(index)) {
-        newSet.delete(index);
-      } else {
-        newSet.add(index);
-      }
-      return newSet;
-    });
-  };
-
   const handleDownloadQR = async (ticketCode: string) => {
-    setDownloadingTicket(ticketCode);
     try {
       const blob = await ticketService.downloadQRCode(ticketCode);
       const url = window.URL.createObjectURL(blob);
@@ -294,8 +184,6 @@ export default function ConfirmationPage() {
     } catch (error) {
       console.error('Error downloading QR:', error);
       alert('Không thể tải QR Code. Vui lòng thử lại sau.');
-    } finally {
-      setDownloadingTicket(null);
     }
   };
 
@@ -381,7 +269,7 @@ export default function ConfirmationPage() {
             </CardContent>
           </Card>
 
-          {/* Tickets List with QR Codes */}
+          {/* Tickets Carousel */}
           <div className="mb-8">
             <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
               <Ticket className="w-5 h-5 text-violet-600" />
@@ -393,18 +281,23 @@ export default function ConfirmationPage() {
                 <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
               </div>
             ) : tickets.length > 0 ? (
-              <div className="space-y-4">
-                {tickets.map((ticket, index) => (
-                  <TicketCard
-                    key={ticket.id}
-                    ticket={ticket}
-                    index={index}
-                    isExpanded={expandedTickets.has(index)}
-                    onToggle={() => handleToggleTicket(index)}
-                    onDownload={handleDownloadQR}
-                  />
-                ))}
-              </div>
+              <>
+                <TicketCarousel 
+                  tickets={tickets}
+                  onDownload={handleDownloadQR}
+                />
+                
+                {/* Info Banner for multiple tickets */}
+                {tickets.length > 1 && (
+                  <div className="mt-6 p-4 bg-blue-50 rounded-xl">
+                    <p className="text-sm text-blue-800">
+                      <strong>💡 Lưu ý quan trọng:</strong> Mỗi vé có mã QR riêng biệt. 
+                      Khi đến sự kiện, mỗi người cần xuất trình vé riêng của mình để check-in. 
+                      Vuốt sang trái/phải để xem các vé khác.
+                    </p>
+                  </div>
+                )}
+              </>
             ) : (
               <Card className="border-0 shadow-lg rounded-2xl">
                 <CardContent className="p-8 text-center">

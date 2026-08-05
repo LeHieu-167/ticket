@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { 
   Ticket, ChevronLeft, ChevronRight, Loader2, AlertCircle, 
   CheckCircle, User, Mail, Phone, FileText
@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useBookingSession } from "@/hooks/use-booking-session";
 import { BookingCountdown } from "@/components/ui/booking-countdown";
+import { useAutoCancelOrder } from "@/hooks/use-auto-cancel-order";
+import { useBookingNavigation } from "@/components/providers/BookingNavigationContext";
 
 // --- UTILS ---
 
@@ -26,10 +28,9 @@ const formatCurrency = (amount: number) => {
 const BookingSteps = ({ currentStep }: { currentStep: number }) => {
   const steps = [
     { id: 1, name: 'Chọn vé' },
-    { id: 2, name: 'Chọn ghế' },
-    { id: 3, name: 'Thông tin' },
-    { id: 4, name: 'Thanh toán' },
-    { id: 5, name: 'Hoàn tất' },
+    { id: 2, name: 'Thông tin' },
+    { id: 3, name: 'Thanh toán' },
+    { id: 4, name: 'Hoàn tất' },
   ];
 
   return (
@@ -101,10 +102,9 @@ const FormInput = ({ label, name, type = 'text', placeholder, value, onChange, e
 );
 
 // --- MAIN PAGE ---
-export default function BuyerInfoPage() {
-  const params = useParams();
+export default function BuyerInfoPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params);
   const router = useRouter();
-  const eventId = params.eventId as string;
 
   const [isLoading, setIsLoading] = useState(true);
   const [bookingData, setBookingData] = useState<any>(null);
@@ -116,9 +116,15 @@ export default function BuyerInfoPage() {
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
+  // Hook tự động hủy đơn hàng khi rời khỏi luồng đặt vé (beforeunload, pagehide)
+  useAutoCancelOrder();
+  
+  // Hook để navigate an toàn với popup xác nhận
+  const { safeNavigate } = useBookingNavigation();
+
   // Booking session với countdown timer - tiếp tục từ trang trước
   const bookingSession = useBookingSession({
-    eventId,
+    eventId: slug, // Using slug for redirect
     autoRedirect: true,
     onExpired: () => {
       console.log("Session expired on info page");
@@ -129,13 +135,13 @@ export default function BuyerInfoPage() {
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      router.push(`/login?redirect=/booking/${eventId}/info`);
+      router.push(`/login?redirect=/booking/${slug}/info`);
       return;
     }
 
     const data = sessionStorage.getItem('bookingData');
     if (!data) {
-      router.push(`/booking/${eventId}/tickets`);
+      router.push(`/booking/${slug}/tickets`);
       return;
     }
     
@@ -155,7 +161,7 @@ export default function BuyerInfoPage() {
     }
     
     setIsLoading(false);
-  }, [eventId, router]);
+  }, [slug, router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -199,7 +205,7 @@ export default function BuyerInfoPage() {
       buyerInfo: formData
     }));
     
-    router.push(`/booking/${eventId}/payment`);
+    router.push(`/booking/${slug}/payment`);
   };
 
   // Calculate total
@@ -207,7 +213,7 @@ export default function BuyerInfoPage() {
     if (!bookingData?.ticketTypes) return 0;
     
     return bookingData.ticketTypes.reduce((sum: number, ticket: any) => {
-      const qty = bookingData.selectedTickets[ticket.id] || 0;
+      const qty = ticket.quantity || bookingData.selectedTickets?.[ticket.ticketTypeId] || 0;
       return sum + (ticket.price * qty);
     }, 0);
   };
@@ -230,7 +236,7 @@ export default function BuyerInfoPage() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <button 
-              onClick={() => router.back()} 
+              onClick={() => safeNavigate(`/booking/${slug}/tickets`)} 
               className="flex items-center gap-2 text-slate-600 hover:text-violet-600"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -254,7 +260,7 @@ export default function BuyerInfoPage() {
       {/* Progress Steps */}
       <div className="bg-white border-b">
         <div className="container mx-auto">
-          <BookingSteps currentStep={3} />
+          <BookingSteps currentStep={2} />
         </div>
       </div>
 
@@ -352,11 +358,11 @@ export default function BuyerInfoPage() {
               <CardContent className="p-6 space-y-4">
                 {/* Tickets */}
                 {bookingData?.ticketTypes?.map((ticket: any) => {
-                  const qty = bookingData.selectedTickets[ticket.id] || 0;
+                  const qty = ticket.quantity || bookingData.selectedTickets?.[ticket.ticketTypeId] || 0;
                   if (qty === 0) return null;
                   
                   return (
-                    <div key={ticket.id} className="flex justify-between items-center">
+                    <div key={ticket.ticketTypeId || ticket.id} className="flex justify-between items-center">
                       <div>
                         <p className="font-medium text-slate-900">{ticket.name}</p>
                         <p className="text-sm text-slate-500">{qty} x {formatCurrency(ticket.price)}</p>
@@ -404,7 +410,7 @@ export default function BuyerInfoPage() {
           <div className="flex items-center gap-3 flex-1 sm:flex-none">
             <Button 
               variant="outline" 
-              onClick={() => router.back()}
+              onClick={() => safeNavigate(`/booking/${slug}/tickets`)}
               className="flex-1 sm:flex-none"
             >
               <ChevronLeft className="w-4 h-4 mr-2" />
@@ -423,4 +429,3 @@ export default function BuyerInfoPage() {
     </div>
   );
 }
-

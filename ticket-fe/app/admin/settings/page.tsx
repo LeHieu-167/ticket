@@ -390,28 +390,6 @@ export default function AdminSettingsPage() {
             )}
           </SettingsSection>
 
-          {/* Database Info */}
-          <SettingsSection
-            icon={Database}
-            title="Thông tin hệ thống"
-            description="Thông tin về server và database"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[
-                { label: 'Phiên bản', value: 'v1.0.0' },
-                { label: 'Database', value: 'PostgreSQL 15' },
-                { label: 'Server', value: 'Ubuntu 22.04' },
-                { label: 'Cache', value: 'Redis 7.0' },
-                { label: 'Storage', value: 'Cloudinary' },
-                { label: 'Last Backup', value: '20/12/2024' },
-              ].map((item) => (
-                <div key={item.label} className="p-4 bg-slate-50 rounded-xl">
-                  <p className="text-sm text-slate-500">{item.label}</p>
-                  <p className="font-semibold text-slate-900 mt-1">{item.value}</p>
-                </div>
-              ))}
-            </div>
-          </SettingsSection>
         </div>
       </main>
     </div>

@@ -77,6 +77,7 @@ public class EventService {
         event.setOrganizerName(request.getOrganizerName());
         event.setBannerImageUrl(request.getBannerImageUrl());
         event.setThumbnailUrl(request.getThumbnailUrl());
+        event.setMapImageUrl(request.getMapImageUrl());
         event.setTermsAndConditions(request.getTermsAndConditions());
         event.setActive(true);
 
@@ -179,6 +180,7 @@ public class EventService {
         event.setOrganizerName(request.getOrganizerName());
         event.setBannerImageUrl(request.getBannerImageUrl());
         event.setThumbnailUrl(request.getThumbnailUrl());
+        event.setMapImageUrl(request.getMapImageUrl());
         event.setTermsAndConditions(request.getTermsAndConditions());
 
         // QUAN TRỌNG: Nếu Organizer sửa sự kiện PENDING_APPROVAL hoặc REJECTED,

@@ -188,35 +188,94 @@ const StatCard = ({ title, value, icon, trend, prefix = '', suffix = '', isLive,
   </Card>
 );
 
-// Event Row
-const EventRow = ({ event }: { event: EventResponse }) => (
-  <div className="flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors">
-    <div className="flex items-center gap-4">
-      <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100">
-        <img 
-          src={event.thumbnailUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=200'} 
-          alt={event.name}
-          className="w-full h-full object-cover"
-        />
+// Event Row - Hiển thị chi tiết doanh thu và số vé từng loại
+const EventRow = ({ event }: { event: EventResponse }) => {
+  // Sử dụng trực tiếp dữ liệu từ backend
+  const ticketStats = event.ticketTypes?.map(tt => ({
+    name: tt.name,
+    sold: tt.soldQuantity ?? 0,                    // Số vé đã bán từ backend
+    total: tt.totalQuantity ?? 0,                  // Tổng số vé
+    available: tt.availableQuantity ?? 0,          // Số vé còn lại từ backend
+    revenue: tt.revenue ?? 0,                      // Doanh thu từ backend
+    price: tt.price ?? 0
+  })) || [];
+  
+  // Tính tổng từ ticketTypes
+  const totalSoldFromTypes = ticketStats.reduce((sum, t) => sum + t.sold, 0);
+  const totalRevenueFromTypes = ticketStats.reduce((sum, t) => sum + t.revenue, 0);
+  const totalAvailableFromTypes = ticketStats.reduce((sum, t) => sum + t.available, 0);
+  
+  // Ưu tiên dùng dữ liệu tổng từ Event (backend đã tính), fallback về tổng từ ticketTypes
+  const displaySold = event.ticketsSold ?? totalSoldFromTypes;
+  const displayRevenue = event.totalRevenue ?? totalRevenueFromTypes;
+  const displayAvailable = ticketStats.length > 0 ? totalAvailableFromTypes : event.availableTickets;
+
+  return (
+    <div className="p-4 hover:bg-slate-50 rounded-xl transition-colors border border-slate-100 mb-2">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 shrink-0">
+            <img 
+              src={event.thumbnailUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=200'} 
+              alt={event.name}
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div>
+            <h4 className="font-bold text-slate-900">{event.name}</h4>
+            <p className="text-sm text-slate-500">{formatDate(event.eventDate)} • {event.location}</p>
+          </div>
+        </div>
+        <Link href={`/events/${event.slug}`}>
+          <Button variant="ghost" size="icon" className="rounded-xl">
+            <Eye className="w-5 h-5" />
+          </Button>
+        </Link>
       </div>
-      <div>
-        <h4 className="font-bold text-slate-900">{event.name}</h4>
-        <p className="text-sm text-slate-500">{formatDate(event.eventDate)} • {event.location}</p>
+      
+      {/* Thống kê doanh thu và số vé */}
+      <div className="bg-slate-50 rounded-xl p-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-4">
+            <div className="text-center">
+              <p className="text-xs text-slate-500">Đã bán</p>
+              <p className="text-lg font-bold text-violet-600">{displaySold} vé</p>
+            </div>
+            <div className="w-px h-8 bg-slate-200" />
+            <div className="text-center">
+              <p className="text-xs text-slate-500">Doanh thu</p>
+              <p className="text-lg font-bold text-green-600">{formatCurrency(displayRevenue)}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-slate-500">Còn lại</p>
+            <p className="text-sm font-semibold text-slate-700">{displayAvailable} vé</p>
+          </div>
+        </div>
+        
+        {/* Chi tiết từng loại vé */}
+        {ticketStats.length > 0 && (
+          <div className="border-t border-slate-200 pt-2 mt-2 space-y-1">
+            <p className="text-xs font-medium text-slate-500 mb-1">Chi tiết theo loại vé:</p>
+            {ticketStats.map((ticket, index) => (
+              <div key={index} className="flex items-center justify-between text-xs">
+                <span className="text-slate-600">{ticket.name}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-slate-500">
+                    {ticket.sold}/{ticket.total} vé
+                  </span>
+                  <span className="font-medium text-green-600 min-w-[90px] text-right">
+                    {formatCurrency(ticket.revenue)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
-    <div className="flex items-center gap-4">
-      <div className="text-right">
-        <p className="font-bold text-slate-900">{event.availableTickets} vé còn</p>
-        <p className="text-sm text-slate-500">{formatCurrency(event.ticketPrice)}</p>
-      </div>
-      <Link href={`/events/${event.slug}`}>
-        <Button variant="ghost" size="icon" className="rounded-xl">
-          <Eye className="w-5 h-5" />
-        </Button>
-      </Link>
-    </div>
-  </div>
-);
+  );
+};
 
 // --- MAIN PAGE ---
 export default function OrganizerDashboard() {
@@ -297,9 +356,9 @@ export default function OrganizerDashboard() {
           />
           <StatCard
             title="Doanh thu"
-            value={Math.floor(totalRevenue / 1000000)}
+            value={totalRevenue >= 1000000 ? Math.floor(totalRevenue / 1000000) : Math.floor(totalRevenue / 1000)}
             prefix=""
-            suffix="M"
+            suffix={totalRevenue >= 1000000 ? "M" : "K"}
             icon={<DollarSign className="w-7 h-7 text-white" />}
             color="text-green-600"
           />
@@ -323,21 +382,27 @@ export default function OrganizerDashboard() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Activity className="w-6 h-6" />
-                <h2 className="text-xl font-bold">Hoạt động bán vé</h2>
+                <h2 className="text-xl font-bold">Tổng quan hoạt động</h2>
               </div>
             </div>
           </div>
           <CardContent className="p-6">
-            <div className="flex items-center justify-center py-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4">
               <div className="text-center">
-                <div className="text-6xl font-black text-violet-600 mb-2">
+                <div className="text-5xl font-black text-violet-600 mb-2">
                   <AnimatedCounter value={ticketsSold} />
                 </div>
-                <p className="text-xl text-slate-500">tổng số vé đã bán</p>
-                <div className="mt-4 flex items-center justify-center gap-2 text-green-600">
-                  <span className="font-medium">Dữ liệu được cập nhật mới nhất</span>
-                </div>
+                <p className="text-lg text-slate-500">vé đã bán</p>
               </div>
+              <div className="text-center">
+                <div className="text-5xl font-black text-green-600 mb-2">
+                  {formatCurrency(totalRevenue)}
+                </div>
+                <p className="text-lg text-slate-500">tổng doanh thu</p>
+              </div>
+            </div>
+            <div className="mt-4 text-center text-sm text-slate-400">
+              Dữ liệu được cập nhật từ hệ thống
             </div>
           </CardContent>
         </Card>

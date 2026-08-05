@@ -123,4 +123,18 @@ public class UserService {
 
         userRepository.delete(user);
     }
+
+    /**
+     * Lấy UUID của user từ username
+     * Dùng cho beacon-cancel endpoint
+     * 
+     * @param username Username của user
+     * @return UUID của user hoặc null nếu không tìm thấy
+     */
+    @Transactional(readOnly = true)
+    public UUID getUserIdByUsername(String username) {
+        return userRepository.findByUsername(username)
+                .map(User::getId)
+                .orElse(null);
+    }
 }

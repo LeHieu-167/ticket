@@ -63,6 +63,20 @@ public class Event {
     @Column(name = "total_tickets")
     private Integer totalTickets;
 
+    /**
+     * Tổng số vé đã bán
+     */
+    @Column(name = "tickets_sold")
+    @Builder.Default
+    private Integer ticketsSold = 0;
+
+    /**
+     * Tổng doanh thu từ sự kiện
+     */
+    @Column(name = "total_revenue")
+    @Builder.Default
+    private BigDecimal totalRevenue = BigDecimal.ZERO;
+
     @Column(name = "organizer_id", nullable = false)
     private UUID organizerId;
     private UUID organizerId;
@@ -76,6 +90,15 @@ public class Event {
     @Column(name = "thumbnail_url", length = 500)
     private String thumbnailUrl;
 
+    /**
+     * URL hình ảnh sơ đồ/map địa điểm
+     */
+    @Column(name = "map_image_url", length = 500)
+    private String mapImageUrl;
+
+    /**
+     * Điều khoản và điều kiện
+     */
     @Column(name = "terms_and_conditions", columnDefinition = "TEXT")
     private String termsAndConditions;
 

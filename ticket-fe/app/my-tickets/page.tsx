@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { 
   Ticket, Calendar, MapPin, Clock, Download, ChevronRight,
   Loader2, AlertCircle, Search, Filter, QrCode, User,
-  CheckCircle, XCircle, ChevronLeft, Wifi, WifiOff
+  CheckCircle, XCircle, ChevronLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "@/components/layouts/Header";
 import ticketService, { TicketResponse } from "@/apis/ticket.service";
 import { useWebSocket, TicketCheckinData } from "@/hooks/use-websocket";
+import TicketCarousel from "@/components/tickets/TicketCarousel";
 
 // --- UTILS ---
 
@@ -96,9 +97,11 @@ const TicketListCard = ({ ticket, onClick }: TicketListCardProps) => {
                   </span>
                   <span className={`text-xs px-2 py-1 rounded-full font-medium
                     ${ticket.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 
-                      ticket.status === 'USED' ? 'bg-slate-100 text-slate-600' : 'bg-red-100 text-red-700'}`}>
+                      ticket.status === 'USED' ? 'bg-blue-100 text-blue-600' : 
+                      ticket.status === 'EXPIRED' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>
                     {ticket.status === 'ACTIVE' ? 'Còn hiệu lực' : 
-                     ticket.status === 'USED' ? 'Đã sử dụng' : 'Hết hạn'}
+                     ticket.status === 'USED' ? 'Đã sử dụng' : 
+                     ticket.status === 'EXPIRED' ? 'Đã hết hạn' : 'Đã hủy'}
                   </span>
                 </div>
               </div>
@@ -111,125 +114,58 @@ const TicketListCard = ({ ticket, onClick }: TicketListCardProps) => {
   );
 };
 
-// Ticket Detail Modal/View
-interface TicketDetailProps {
-  ticket: TicketResponse;
+// Ticket Carousel Modal - Shows all tickets from the same order
+interface TicketCarouselModalProps {
+  tickets: TicketResponse[];
+  initialIndex: number;
   onClose: () => void;
-  onDownload: () => void;
+  onDownload: (ticketCode: string) => void;
 }
 
-const TicketDetail = ({ ticket, onClose, onDownload }: TicketDetailProps) => {
-  const qrImageSrc = ticket.qrCodeDataUri || 
-    (ticket.qrCodeBase64 ? ticketService.createDataUri(ticket.qrCodeBase64) : null);
+const TicketCarouselModal = ({ tickets, initialIndex, onClose, onDownload }: TicketCarouselModalProps) => {
+  // Close on escape key
+  React.useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] overflow-auto shadow-2xl">
+    <div 
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-slate-50 rounded-3xl w-full max-w-lg max-h-[95vh] overflow-auto shadow-2xl">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between">
-          <button onClick={onClose} className="flex items-center gap-2 text-slate-600 hover:text-violet-600">
-            <ChevronLeft className="w-5 h-5" />
-            Quay lại
-          </button>
-          <span className={`px-3 py-1 rounded-full text-xs font-bold
-            ${ticket.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 
-              ticket.status === 'USED' ? 'bg-slate-100 text-slate-600' : 'bg-red-100 text-red-700'}`}>
-            {ticket.status === 'ACTIVE' ? 'Còn hiệu lực' : 
-             ticket.status === 'USED' ? 'Đã sử dụng' : 'Hết hạn'}
-          </span>
-        </div>
-
-        {/* QR Code - Large and Centered */}
-        <div className="p-8 bg-white flex flex-col items-center">
-          {/* High contrast white background for QR */}
-          <div className="bg-white p-6 rounded-3xl shadow-[inset_0_2px_10px_rgba(0,0,0,0.1)] border-4 border-slate-100">
-            {qrImageSrc ? (
-              <img 
-                src={qrImageSrc} 
-                alt={`QR Code - ${ticket.ticketCode}`}
-                className="w-56 h-56 object-contain"
-                style={{ imageRendering: 'pixelated' }}
-              />
-            ) : (
-              <div className="w-56 h-56 bg-slate-100 rounded-xl flex items-center justify-center">
-                <QrCode className="w-24 h-24 text-slate-300" />
-              </div>
-            )}
-          </div>
-
-          {/* Ticket Code - For manual entry */}
-          <div className="mt-6 text-center w-full">
-            <p className="text-xs text-slate-500 mb-2">Mã vé (nhập tay nếu máy quét không đọc được)</p>
-            <div className="bg-slate-100 rounded-xl px-4 py-3 font-mono text-lg font-bold text-slate-900 break-all">
-              {ticket.ticketCode}
-            </div>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="relative h-8 flex items-center">
-          <div className="absolute left-0 w-4 h-8 bg-slate-100 rounded-r-full" />
-          <div className="flex-1 border-t-2 border-dashed border-slate-200 mx-4" />
-          <div className="absolute right-0 w-4 h-8 bg-slate-100 rounded-l-full" />
-        </div>
-
-        {/* Event Details */}
-        <div className="p-6 space-y-4">
-          <h2 className="text-xl font-bold text-slate-900">{ticket.eventName}</h2>
-          
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 text-slate-600">
-              <Calendar className="w-5 h-5 text-violet-600" />
-              <span>{formatDate(ticket.eventDate)} • {formatTime(ticket.eventDate)}</span>
-            </div>
-            <div className="flex items-center gap-3 text-slate-600">
-              <MapPin className="w-5 h-5 text-violet-600" />
-              <span>{ticket.eventLocation}</span>
-            </div>
-            {ticket.eventAddress && (
-              <p className="text-sm text-slate-500 ml-8">{ticket.eventAddress}</p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-            <div>
-              <p className="text-xs text-slate-500">Loại vé</p>
-              <p className="font-bold text-slate-900">{ticket.ticketType}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-500">Giá vé</p>
-              <p className="font-bold text-violet-600">{formatCurrency(ticket.price)}</p>
-            </div>
-            {ticket.seatInfo && (
-              <div>
-                <p className="text-xs text-slate-500">Ghế</p>
-                <p className="font-bold text-slate-900">{ticket.seatInfo}</p>
-              </div>
-            )}
-          </div>
-
-          {ticket.status === 'USED' && ticket.checkedInAt && (
-            <div className="p-4 bg-slate-50 rounded-xl flex items-center gap-3">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-              <div>
-                <p className="font-medium text-slate-900">Đã check-in</p>
-                <p className="text-sm text-slate-500">
-                  {new Date(ticket.checkedInAt).toLocaleString('vi-VN')}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="p-6 border-t bg-slate-50">
-          <Button 
-            onClick={onDownload}
-            className="w-full h-12 rounded-xl bg-violet-600 hover:bg-violet-700"
+        <div className="sticky top-0 bg-white/90 backdrop-blur-sm border-b p-4 flex items-center justify-between z-10">
+          <button 
+            onClick={onClose} 
+            className="flex items-center gap-2 text-slate-600 hover:text-violet-600 transition-colors"
           >
-            <Download className="w-5 h-5 mr-2" />
-            Tải QR Code
-          </Button>
+            <ChevronLeft className="w-5 h-5" />
+            <span className="font-medium">Quay lại</span>
+          </button>
+          <div className="flex items-center gap-2 text-sm text-slate-500">
+            <Ticket className="w-4 h-4" />
+            <span>{tickets.length} vé trong đơn hàng</span>
+          </div>
+        </div>
+
+        {/* Carousel */}
+        <div className="py-6">
+          <TicketCarousel 
+            tickets={tickets}
+            onDownload={onDownload}
+          />
+        </div>
+
+        {/* Info Banner */}
+        <div className="mx-4 mb-4 p-4 bg-blue-50 rounded-xl">
+          <p className="text-sm text-blue-800">
+            <strong>💡 Mỗi vé có mã QR riêng.</strong> Khi check-in, mỗi người xuất trình vé của mình để được quét riêng lẻ.
+          </p>
         </div>
       </div>
     </div>
@@ -260,9 +196,23 @@ export default function MyTicketsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<'all' | 'upcoming' | 'past'>('all');
-  const [selectedTicket, setSelectedTicket] = useState<TicketResponse | null>(null);
+  const [selectedOrderTickets, setSelectedOrderTickets] = useState<TicketResponse[] | null>(null);
+  const [selectedTicketIndex, setSelectedTicketIndex] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
   const [checkinNotification, setCheckinNotification] = useState<string | null>(null);
+
+  // Group tickets by order for carousel display
+  const getTicketsByOrder = (orderId: string): TicketResponse[] => {
+    return tickets.filter(t => t.orderId === orderId);
+  };
+
+  // Handle ticket click - show all tickets from same order in carousel
+  const handleTicketClick = (ticket: TicketResponse) => {
+    const orderTickets = getTicketsByOrder(ticket.orderId);
+    const ticketIndex = orderTickets.findIndex(t => t.id === ticket.id);
+    setSelectedOrderTickets(orderTickets);
+    setSelectedTicketIndex(ticketIndex >= 0 ? ticketIndex : 0);
+  };
 
   // Check auth & get userId
   useEffect(() => {
@@ -295,11 +245,13 @@ export default function MyTicketsPage() {
         : ticket
     ));
     
-    // Update selected ticket if viewing
-    setSelectedTicket(prev => 
-      prev?.id === data.ticketId 
-        ? { ...prev, status: 'USED' as const, checkedInAt: data.checkedInAt }
-        : prev
+    // Update selected order tickets if viewing
+    setSelectedOrderTickets(prev => 
+      prev?.map(ticket => 
+        ticket.id === data.ticketId 
+          ? { ...ticket, status: 'USED' as const, checkedInAt: data.checkedInAt }
+          : ticket
+      ) || null
     );
 
     // Show notification
@@ -397,7 +349,7 @@ export default function MyTicketsPage() {
     if (filterStatus === 'upcoming') {
       result = result.filter(t => isUpcoming(t.eventDate) && t.status === 'ACTIVE');
     } else if (filterStatus === 'past') {
-      result = result.filter(t => !isUpcoming(t.eventDate) || t.status !== 'ACTIVE');
+      result = result.filter(t => !isUpcoming(t.eventDate) || t.status === 'USED' || t.status === 'EXPIRED');
     }
 
     // Sort by date (upcoming first)
@@ -430,7 +382,7 @@ export default function MyTicketsPage() {
   };
 
   const upcomingCount = tickets.filter(t => isUpcoming(t.eventDate) && t.status === 'ACTIVE').length;
-  const pastCount = tickets.filter(t => !isUpcoming(t.eventDate) || t.status !== 'ACTIVE').length;
+  const pastCount = tickets.filter(t => !isUpcoming(t.eventDate) || t.status === 'USED' || t.status === 'EXPIRED').length;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -454,24 +406,6 @@ export default function MyTicketsPage() {
             <p className="text-slate-500">Quản lý tất cả vé sự kiện của bạn</p>
           </div>
           
-          {/* WebSocket Status Indicator */}
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium
-            ${isConnected 
-              ? 'bg-green-100 text-green-700' 
-              : 'bg-slate-100 text-slate-500'}`}
-          >
-            {isConnected ? (
-              <>
-                <Wifi className="w-3.5 h-3.5" />
-                <span>Realtime</span>
-              </>
-            ) : (
-              <>
-                <WifiOff className="w-3.5 h-3.5" />
-                <span>Offline</span>
-              </>
-            )}
-          </div>
         </div>
 
         {/* Search & Filter */}
@@ -522,7 +456,7 @@ export default function MyTicketsPage() {
               <TicketListCard
                 key={ticket.id}
                 ticket={ticket}
-                onClick={() => setSelectedTicket(ticket)}
+                onClick={() => handleTicketClick(ticket)}
               />
             ))}
           </div>
@@ -536,12 +470,13 @@ export default function MyTicketsPage() {
         )}
       </main>
 
-      {/* Ticket Detail Modal */}
-      {selectedTicket && (
-        <TicketDetail
-          ticket={selectedTicket}
-          onClose={() => setSelectedTicket(null)}
-          onDownload={() => handleDownloadQR(selectedTicket.ticketCode)}
+      {/* Ticket Carousel Modal */}
+      {selectedOrderTickets && selectedOrderTickets.length > 0 && (
+        <TicketCarouselModal
+          tickets={selectedOrderTickets}
+          initialIndex={selectedTicketIndex}
+          onClose={() => setSelectedOrderTickets(null)}
+          onDownload={handleDownloadQR}
         />
       )}
     </div>

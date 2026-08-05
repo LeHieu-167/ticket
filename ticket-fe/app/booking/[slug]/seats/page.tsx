@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { 
   Ticket, ChevronLeft, ChevronRight, Loader2, AlertCircle, 
   CheckCircle, Info, ZoomIn, ZoomOut, RotateCcw
@@ -176,10 +176,9 @@ const SeatLegend = () => (
 );
 
 // --- MAIN PAGE ---
-export default function SeatSelectionPage() {
-  const params = useParams();
+export default function SeatSelectionPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params);
   const router = useRouter();
-  const eventId = params.eventId as string;
 
   const [seats, setSeats] = useState<Seat[]>([]);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
@@ -191,17 +190,17 @@ export default function SeatSelectionPage() {
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      router.push(`/login?redirect=/booking/${eventId}/seats`);
+      router.push(`/login?redirect=/booking/${slug}/seats`);
       return;
     }
 
     const data = sessionStorage.getItem('bookingData');
     if (!data) {
-      router.push(`/booking/${eventId}/tickets`);
+      router.push(`/booking/${slug}/tickets`);
       return;
     }
     setBookingData(JSON.parse(data));
-  }, [eventId, router]);
+  }, [slug, router]);
 
   // Load seats
   useEffect(() => {
@@ -240,7 +239,7 @@ export default function SeatSelectionPage() {
       ...bookingData,
       selectedSeats
     }));
-    router.push(`/booking/${eventId}/info`);
+    router.push(`/booking/${slug}/info`);
   };
 
   const selectedSeatsData = seats.filter(s => selectedSeats.includes(s.id));
@@ -270,7 +269,7 @@ export default function SeatSelectionPage() {
       <header className="bg-white border-b sticky top-0 z-50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            <Link href={`/booking/${eventId}/tickets`} className="flex items-center gap-2 text-slate-600 hover:text-violet-600">
+            <Link href={`/booking/${slug}/tickets`} className="flex items-center gap-2 text-slate-600 hover:text-violet-600">
               <ChevronLeft className="w-5 h-5" />
               <span className="font-medium">Quay lại</span>
             </Link>
@@ -450,7 +449,7 @@ export default function SeatSelectionPage() {
             <p className="text-xl font-bold text-slate-900">{selectedSeats.length} ghế</p>
           </div>
           <div className="flex items-center gap-3 flex-1 sm:flex-none">
-            <Link href={`/booking/${eventId}/tickets`} className="flex-1 sm:flex-none">
+            <Link href={`/booking/${slug}/tickets`} className="flex-1 sm:flex-none">
               <Button variant="outline" className="w-full sm:w-auto">
                 <ChevronLeft className="w-4 h-4 mr-2" />
                 Quay lại
@@ -470,4 +469,3 @@ export default function SeatSelectionPage() {
     </div>
   );
 }
-

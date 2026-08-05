@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { BookingGuardProvider } from "@/components/providers/BookingGuardProvider";
+import { BookingNavigationProvider } from "@/components/providers/BookingNavigationContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,7 +29,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <BookingGuardProvider>
+          <BookingNavigationProvider>
+            {children}
+          </BookingNavigationProvider>
+        </BookingGuardProvider>
       </body>
     </html>
   );

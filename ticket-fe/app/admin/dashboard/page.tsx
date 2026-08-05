@@ -351,34 +351,6 @@ export default function AdminDashboardPage() {
             </CardContent>
           </Card>
 
-          {/* System Status */}
-          <Card className="border-0 shadow-lg">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <TrendingUp className="w-5 h-5 text-emerald-500" />
-                Trạng thái hệ thống
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {[
-                  { name: 'API Server', status: 'Hoạt động', ok: true },
-                  { name: 'Database', status: 'Hoạt động', ok: true },
-                  { name: 'Payment Gateway', status: 'Hoạt động', ok: true },
-                  { name: 'Email Service', status: 'Hoạt động', ok: true },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                    <span className="font-medium text-slate-700">{item.name}</span>
-                    <span className={`flex items-center gap-2 text-sm font-medium ${item.ok ? 'text-emerald-600' : 'text-red-600'}`}>
-                      <span className={`w-2 h-2 rounded-full ${item.ok ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                      {item.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Quick Actions */}
           <Card className="border-0 shadow-lg">
             <CardHeader className="pb-4">

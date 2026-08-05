@@ -7,7 +7,7 @@ import {
   Ticket, LayoutDashboard, PlusCircle, QrCode, LogOut,
   Upload, Image as ImageIcon, Calendar, DollarSign,
   FileText, AlertCircle, ChevronLeft, Loader2, Package, Save,
-  ToggleLeft, ToggleRight, CheckCircle, Clock, XCircle, Ban, ShoppingCart
+  ToggleLeft, ToggleRight, CheckCircle, Clock, XCircle, Ban, ShoppingCart, MapPin
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -146,6 +146,7 @@ export default function EditEventPage() {
   const [formData, setFormData] = useState<EventRequest & { 
     seatMapImageUrl?: string;
     seatMapJson?: string;
+    mapImageUrl?: string;
     ticketTypes?: Array<{ name: string; price: number; totalQuantity: number }>;
   }>({
     name: "",
@@ -159,6 +160,7 @@ export default function EditEventPage() {
     organizerName: "",
     bannerImageUrl: "",
     thumbnailUrl: "",
+    mapImageUrl: "",
     termsAndConditions: "",
     ticketTypes: []
   });
@@ -201,6 +203,7 @@ export default function EditEventPage() {
           organizerName: data.organizerName || "",
           bannerImageUrl: data.bannerImageUrl || "",
           thumbnailUrl: data.thumbnailUrl || "",
+          mapImageUrl: data.mapImageUrl || "",
           termsAndConditions: data.termsAndConditions || "",
           ticketTypes: [] 
         });
@@ -527,6 +530,43 @@ export default function EditEventPage() {
                   disabled={!canEditForm}
                 />
               </div>
+
+              {/* Map Image URL */}
+              {canEditForm && (
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MapPin className="w-5 h-5 text-violet-600" />
+                    <h3 className="text-sm font-semibold text-slate-800">Sơ đồ địa điểm / Bản đồ</h3>
+                  </div>
+                  <p className="text-sm text-slate-500 mb-4">
+                    Thêm URL ảnh sơ đồ địa điểm.
+                  </p>
+                  <div>
+                    <Label htmlFor="mapImageUrl">URL Sơ đồ địa điểm</Label>
+                    <Input
+                      id="mapImageUrl"
+                      name="mapImageUrl"
+                      value={formData.mapImageUrl || ''}
+                      onChange={handleInputChange}
+                      placeholder="https://example.com/map-image.jpg"
+                      className="mt-1"
+                      disabled={!canEditForm}
+                    />
+                  </div>
+                  {formData.mapImageUrl && (
+                    <div className="mt-4 rounded-xl overflow-hidden border border-slate-200">
+                      <img 
+                        src={formData.mapImageUrl} 
+                        alt="Sơ đồ địa điểm" 
+                        className="w-full max-h-64 object-contain bg-slate-50"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

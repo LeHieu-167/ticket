@@ -10,8 +10,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import eventService, { EventResponse } from "@/apis/event.service";
+import ticketService, { TicketTypeResponse } from "@/apis/ticket.service";
+import { orderService } from "@/apis/order.service";
 import { useBookingSession } from "@/hooks/use-booking-session";
 import { BookingCountdown } from "@/components/ui/booking-countdown";
+import { useAutoCancelOrder, setCurrentOrderId, clearCurrentOrderId, getCurrentOrderId } from "@/hooks/use-auto-cancel-order";
+import { useBookingNavigation } from "@/components/providers/BookingNavigationContext";
 
 // --- TYPES ---
 
@@ -28,55 +32,43 @@ interface TicketType {
   popular?: boolean;
 }
 
-// Mock ticket types (in real app, this comes from API)
-const getMockTicketTypes = (event: EventResponse): TicketType[] => [
-  {
-    id: 'vip',
-    name: 'VIP',
-    description: 'Vị trí đẹp nhất, quà tặng đặc biệt',
-    price: event.ticketPrice * 3,
-    available: Math.floor(event.availableTickets * 0.1),
-    maxPerOrder: 4,
-    benefits: ['Vị trí hàng đầu', 'Quà tặng exclusive', 'Meet & Greet', 'Đồ uống miễn phí'],
-    color: 'from-amber-500 to-orange-600',
-    popular: false
-  },
-  {
-    id: 'premium',
-    name: 'Premium',
-    description: 'Trải nghiệm cao cấp với nhiều ưu đãi',
-    price: event.ticketPrice * 2,
-    originalPrice: event.ticketPrice * 2.5,
-    available: Math.floor(event.availableTickets * 0.2),
-    maxPerOrder: 6,
-    benefits: ['Vị trí tốt', 'Khu vực riêng', 'Đồ uống miễn phí'],
-    color: 'from-violet-500 to-purple-600',
-    popular: true
-  },
-  {
-    id: 'standard',
-    name: 'Standard',
-    description: 'Vé phổ thông, trải nghiệm trọn vẹn',
-    price: event.ticketPrice,
-    available: Math.floor(event.availableTickets * 0.5),
-    maxPerOrder: 10,
-    benefits: ['Vào cửa sự kiện', 'Khu vực đứng/ngồi chung'],
-    color: 'from-slate-600 to-slate-700',
-    popular: false
-  },
-  {
-    id: 'early-bird',
-    name: 'Early Bird',
-    description: 'Ưu đãi đặt sớm - Số lượng có hạn',
-    price: event.ticketPrice * 0.7,
-    originalPrice: event.ticketPrice,
-    available: Math.floor(event.availableTickets * 0.1),
-    maxPerOrder: 4,
-    benefits: ['Giá ưu đãi 30%', 'Vào cửa sự kiện'],
-    color: 'from-emerald-500 to-teal-600',
-    popular: false
-  }
-];
+// Color palette for ticket types based on name
+const getTicketTypeColor = (name: string, index: number): string => {
+  
+  // Default colors based on index
+  const colors = [
+    'from-violet-500 to-purple-600',
+    'from-blue-500 to-indigo-600',
+    'from-emerald-500 to-teal-600',
+    'from-rose-500 to-pink-600',
+    'from-slate-600 to-slate-700',
+  ];
+  return colors[index % colors.length];
+};
+
+// Transform API response to frontend TicketType format
+const transformTicketType = (apiType: TicketTypeResponse, index: number): TicketType => {
+  const benefits: string[] = [];
+  
+  // Generate benefits based on ticket type name and zone
+  if (apiType.zoneName) benefits.push(`Khu vực: ${apiType.zoneName}`);
+  if (apiType.zoneDescription) benefits.push(apiType.zoneDescription);
+  if (apiType.seatingType === 'FULL_SEAT') benefits.push('Ghế ngồi riêng');
+  if (apiType.seatingType === 'ZONE_WITH_ROW') benefits.push('Có số hàng');
+  if (!benefits.length) benefits.push('Vào cửa sự kiện');
+  
+  return {
+    id: apiType.id.toString(),
+    name: apiType.name,
+    description: apiType.description || `Loại vé ${apiType.name}`,
+    price: apiType.price,
+    available: apiType.availableQuantity,
+    maxPerOrder: Math.min(10, apiType.availableQuantity), // Max 10 tickets per order
+    benefits,
+    color: apiType.colorCode || getTicketTypeColor(apiType.name, index),
+    popular: index === 0 && apiType.availableQuantity > 0, // Mark first available as popular
+  };
+};
 
 // --- UTILS ---
 
@@ -103,10 +95,9 @@ const formatDate = (isoString: string) => {
 const BookingSteps = ({ currentStep }: { currentStep: number }) => {
   const steps = [
     { id: 1, name: 'Chọn vé', icon: Ticket },
-    { id: 2, name: 'Chọn ghế', icon: () => <span className="text-sm font-bold">🪑</span> },
-    { id: 3, name: 'Thông tin', icon: () => <span className="text-sm font-bold">📝</span> },
-    { id: 4, name: 'Thanh toán', icon: () => <span className="text-sm font-bold">💳</span> },
-    { id: 5, name: 'Hoàn tất', icon: CheckCircle },
+    { id: 2, name: 'Thông tin', icon: () => <span className="text-sm font-bold">📝</span> },
+    { id: 3, name: 'Thanh toán', icon: () => <span className="text-sm font-bold">💳</span> },
+    { id: 4, name: 'Hoàn tất', icon: CheckCircle },
   ];
 
   return (
@@ -314,11 +305,6 @@ const OrderSummary = ({ event, selectedTickets, ticketTypes }: OrderSummaryProps
               </div>
             </div>
 
-            {/* Security Note */}
-            <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-3 rounded-xl">
-              <ShieldCheck className="w-4 h-4 text-green-500" />
-              <span>Thanh toán an toàn & bảo mật</span>
-            </div>
           </>
         )}
       </CardContent>
@@ -327,8 +313,8 @@ const OrderSummary = ({ event, selectedTickets, ticketTypes }: OrderSummaryProps
 };
 
 // --- MAIN PAGE ---
-export default function TicketSelectionPage({ params }: { params: Promise<{ eventId: string }> }) {
-  const { eventId } = use(params);
+export default function TicketSelectionPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params);
   const router = useRouter();
 
   const [event, setEvent] = useState<EventResponse | null>(null);
@@ -336,10 +322,44 @@ export default function TicketSelectionPage({ params }: { params: Promise<{ even
   const [error, setError] = useState<string | null>(null);
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [selectedTickets, setSelectedTickets] = useState<{ [key: string]: number }>({});
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+
+  // Hook tự động hủy đơn hàng khi rời khỏi luồng đặt vé (beforeunload, pagehide)
+  useAutoCancelOrder();
+  
+  // Hook để navigate an toàn với popup xác nhận
+  const { safeNavigate } = useBookingNavigation();
+
+  /**
+   * LOGIC "CLEAN-UP ON ENTRY"
+   * Khi vào trang chọn vé, kiểm tra xem có đơn hàng cũ không.
+   * Nếu có -> Hủy đơn cũ (trả vé) -> Xóa session
+   * Điều này đảm bảo vé không bị giữ ảo khi user quay lại từ đầu
+   */
+  useEffect(() => {
+    const cleanupOldOrder = async () => {
+      const oldOrderId = getCurrentOrderId();
+      if (oldOrderId) {
+        console.log('🧹 Clean-up: Hủy đơn hàng cũ:', oldOrderId);
+        try {
+          await orderService.cancelOrder(oldOrderId);
+          console.log('✅ Đã hủy đơn hàng cũ thành công');
+        } catch (err) {
+          console.warn('⚠️ Không thể hủy đơn cũ (có thể đã hết hạn):', err);
+        } finally {
+          // Luôn xóa session dù API thành công hay thất bại
+          clearCurrentOrderId();
+          sessionStorage.removeItem('bookingData');
+        }
+      }
+    };
+    
+    cleanupOldOrder();
+  }, []); // Chạy 1 lần khi component mount
 
   // Booking session với countdown timer - bắt đầu ngay khi vào trang
   const bookingSession = useBookingSession({
-    eventId,
+    eventId: slug, // Using slug for redirect
     autoRedirect: true,
     onExpired: () => {
       console.log("Session expired on tickets page");
@@ -350,9 +370,9 @@ export default function TicketSelectionPage({ params }: { params: Promise<{ even
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      router.push(`/login?redirect=/booking/${eventId}/tickets`);
+      router.push(`/login?redirect=/booking/${slug}/tickets`);
     }
-  }, [eventId, router]);
+  }, [slug, router]);
 
   // Bắt đầu booking session khi component mount
   useEffect(() => {
@@ -361,26 +381,42 @@ export default function TicketSelectionPage({ params }: { params: Promise<{ even
     }
   }, [bookingSession]);
 
-  // Fetch event
+  // Fetch event and ticket types
   useEffect(() => {
-    const fetchEvent = async () => {
-      if (!eventId) return;
+    const fetchEventAndTicketTypes = async () => {
+      if (!slug) return;
       
       try {
         setIsLoading(true);
-        const data = await eventService.getEventById(eventId);
-        setEvent(data);
-        setTicketTypes(getMockTicketTypes(data));
+        
+        // 1. Fetch event by slug first
+        const eventData = await eventService.getEventBySlug(slug);
+        setEvent(eventData);
+
+        // 2. Fetch ticket types using event ID
+        if (eventData && eventData.id) {
+            const ticketTypesData = await ticketService.getAvailableTicketTypes(eventData.id);
+            
+            // Transform API ticket types to frontend format
+            if (ticketTypesData && ticketTypesData.length > 0) {
+              const transformedTypes = ticketTypesData.map((type, index) => 
+                transformTicketType(type, index)
+              );
+              setTicketTypes(transformedTypes);
+            } else {
+              setTicketTypes([]);
+            }
+        }
       } catch (err) {
-        console.error("Error fetching event:", err);
+        console.error("Error fetching event or ticket types:", err);
         setError("Không thể tải thông tin sự kiện");
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchEvent();
-  }, [eventId]);
+    fetchEventAndTicketTypes();
+  }, [slug]);
 
   const handleQuantityChange = (ticketId: string, quantity: number) => {
     setSelectedTickets(prev => ({
@@ -390,23 +426,75 @@ export default function TicketSelectionPage({ params }: { params: Promise<{ even
   };
 
   const totalTickets = Object.values(selectedTickets).reduce((sum, qty) => sum + qty, 0);
-  const canProceed = totalTickets > 0;
+  const canProceed = totalTickets > 0 && !isCreatingOrder;
 
-  const handleContinue = () => {
-    // Save selection to session/context
-    sessionStorage.setItem('bookingData', JSON.stringify({
-      eventId,
-      selectedTickets,
-      ticketTypes: ticketTypes.filter(t => selectedTickets[t.id] > 0)
-    }));
+  /**
+   * HANDLE CONTINUE - TẠO ĐƠN HÀNG SỚM
+   * Theo kiến trúc Final Architecture:
+   * - Tạo đơn hàng ngay khi bấm "Tiếp tục" (không đợi đến trang Payment)
+   * - Vé được trừ khỏi tồn kho ngay lập tức
+   * - orderId được lưu vào sessionStorage để hook auto-cancel hoạt động
+   */
+  const handleContinue = async () => {
+    if (isCreatingOrder || !event) return;
     
-    // Check if event has seat map
-    const hasSeatMap = false; // In real app, check event.hasSeatMap
+    setIsCreatingOrder(true);
     
-    if (hasSeatMap) {
-      router.push(`/booking/${eventId}/seats`);
-    } else {
-      router.push(`/booking/${eventId}/info`);
+    try {
+      // Build booking data with selected tickets
+      const selectedTicketTypes = ticketTypes
+        .filter(t => selectedTickets[t.id] > 0)
+        .map(t => ({
+          ticketTypeId: t.id,
+          name: t.name,
+          price: t.price,
+          quantity: selectedTickets[t.id]
+        }));
+      
+      const totalAmount = selectedTicketTypes.reduce(
+        (sum, t) => sum + (t.price * t.quantity), 
+        0
+      );
+      const totalQuantity = selectedTicketTypes.reduce(
+        (sum, t) => sum + t.quantity, 
+        0
+      );
+
+      console.log('🚀 Đang tạo đơn hàng với', totalQuantity, 'vé...');
+      
+      // GỌI API INIT ĐỂ TẠO ĐƠN HÀNG
+      const { orderId, expiredAt } = await orderService.initOrder(
+        event.id, 
+        totalQuantity
+      );
+      
+      console.log('✅ Đã tạo đơn hàng:', orderId);
+      
+      // LƯU ORDER ID VÀO SESSION STORAGE
+      // Hook useAutoCancelOrder sẽ sử dụng ID này để hủy đơn khi user rời trang
+      setCurrentOrderId(orderId);
+      
+      // Lưu dữ liệu booking
+      sessionStorage.setItem('bookingData', JSON.stringify({
+        eventId: event.id,
+        eventSlug: slug,
+        eventName: event.name,
+        eventDate: event.eventDate,
+        selectedTickets,
+        ticketTypes: selectedTicketTypes,
+        totalAmount,
+        totalQuantity,
+        orderId,      // Lưu orderId vào bookingData
+        expiredAt,    // Lưu thời gian hết hạn
+      }));
+      
+      // Chuyển sang trang info
+      router.push(`/booking/${slug}/info`);
+      
+    } catch (err: any) {
+      console.error('❌ Lỗi khi tạo đơn hàng:', err);
+      setError(err.message || 'Không thể tạo đơn hàng. Vui lòng thử lại.');
+      setIsCreatingOrder(false);
     }
   };
 
@@ -442,10 +530,13 @@ export default function TicketSelectionPage({ params }: { params: Promise<{ even
       <header className="bg-white border-b sticky top-0 z-50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            <Link href={`/events/${event?.slug || eventId}`} className="flex items-center gap-2 text-slate-600 hover:text-violet-600">
+            <button 
+              onClick={() => safeNavigate(`/events/${slug}`)}
+              className="flex items-center gap-2 text-slate-600 hover:text-violet-600"
+            >
               <ChevronLeft className="w-5 h-5" />
               <span className="font-medium">Quay lại</span>
-            </Link>
+            </button>
             <Link href="/" className="flex items-center gap-2">
               <Ticket className="h-6 w-6 text-violet-600" />
               <span className="text-xl font-bold text-slate-900">TicketHub</span>
@@ -484,14 +575,28 @@ export default function TicketSelectionPage({ params }: { params: Promise<{ even
 
             {/* Ticket Types */}
             <div className="space-y-4">
-              {ticketTypes.map(ticket => (
-                <TicketCard
-                  key={ticket.id}
-                  ticket={ticket}
-                  quantity={selectedTickets[ticket.id] || 0}
-                  onQuantityChange={(qty) => handleQuantityChange(ticket.id, qty)}
-                />
-              ))}
+              {ticketTypes.length > 0 ? (
+                ticketTypes.map(ticket => (
+                  <TicketCard
+                    key={ticket.id}
+                    ticket={ticket}
+                    quantity={selectedTickets[ticket.id] || 0}
+                    onQuantityChange={(qty) => handleQuantityChange(ticket.id, qty)}
+                  />
+                ))
+              ) : (
+                <Card className="border-0 shadow-lg">
+                  <CardContent className="p-8 text-center">
+                    <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-bold text-slate-900 mb-2">
+                      Chưa có loại vé nào
+                    </h3>
+                    <p className="text-slate-500">
+                      Sự kiện này chưa được cấu hình loại vé. Vui lòng liên hệ nhà tổ chức.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
 
@@ -514,19 +619,31 @@ export default function TicketSelectionPage({ params }: { params: Promise<{ even
             <p className="text-xl font-bold text-slate-900">{totalTickets} vé</p>
           </div>
           <div className="flex items-center gap-3 flex-1 sm:flex-none">
-            <Link href={`/events/${event?.slug || eventId}`} className="flex-1 sm:flex-none">
-              <Button variant="outline" className="w-full sm:w-auto">
-                <ChevronLeft className="w-4 h-4 mr-2" />
-                Quay lại
-              </Button>
-            </Link>
+            <Button 
+              variant="outline" 
+              className="flex-1 sm:flex-none w-full sm:w-auto" 
+              disabled={isCreatingOrder}
+              onClick={() => safeNavigate(`/events/${slug}`)}
+            >
+              <ChevronLeft className="w-4 h-4 mr-2" />
+              Quay lại
+            </Button>
             <Button 
               onClick={handleContinue}
               disabled={!canProceed}
               className="flex-1 sm:flex-none bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700"
             >
-              Tiếp tục
-              <ChevronRight className="w-4 h-4 ml-2" />
+              {isCreatingOrder ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : (
+                <>
+                  Tiếp tục
+                  <ChevronRight className="w-4 h-4 ml-2" />
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -534,4 +651,3 @@ export default function TicketSelectionPage({ params }: { params: Promise<{ even
     </div>
   );
 }
-

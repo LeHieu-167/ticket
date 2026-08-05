@@ -1,0 +1,56 @@
+{
+    "event_info": {
+      "event_id": "EVT-100-STD",
+      "name": "Sự Kiện Đồng Hạng",
+      "total_capacity": 100,
+      "default_price": 150000,
+      "currency": "VND"
+    },
+    "layout": {
+      "rows": 10,
+      "seats_per_row": 10,
+      "row_labels": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
+    },
+    "seat_data": [
+      {
+        "row_id": "A",
+        "seats": [
+          { "id": "A1", "num": "1", "status": "available" },
+          { "id": "A2", "num": "2", "status": "booked" },
+          { "id": "A3", "num": "3", "status": "available" },
+          { "id": "A4", "num": "4", "status": "available" },
+          { "id": "A5", "num": "5", "status": "available" },
+          { "id": "A6", "num": "6", "status": "available" },
+          { "id": "A7", "num": "7", "status": "available" },
+          { "id": "A8", "num": "8", "status": "available" },
+          { "id": "A9", "num": "9", "status": "available" },
+          { "id": "A10", "num": "10", "status": "available" }
+        ]
+      },
+      {
+        "row_id": "B",
+        "seats": [
+          { "id": "B1", "num": "1", "status": "available" },
+          { "comment": "... (Các ghế từ B2 đến B10 tương tự) ..." }
+        ]
+      },
+      {
+        "comment": "... (Các hàng từ C đến I tương tự) ..."
+      },
+      {
+        "row_id": "J",
+        "seats": [
+          { "id": "J1", "num": "1", "status": "available" },
+          { "id": "J2", "num": "2", "status": "available" },
+          { "id": "J3", "num": "3", "status": "available" },
+          { "id": "J4", "num": "4", "status": "available" },
+          { "id": "J5", "num": "5", "status": "available" },
+          { "id": "J6", "num": "6", "status": "available" },
+          { "id": "J7", "num": "7", "status": "available" },
+          { "id": "J8", "num": "8", "status": "available" },
+          { "id": "J9", "num": "9", "status": "available" },
+          { "id": "J10", "num": "10", "status": "available" }
+        ]
+      }
+    ]
+  }
