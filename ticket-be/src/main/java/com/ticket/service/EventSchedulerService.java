@@ -2,7 +2,9 @@ package com.ticket.service;
 
 import com.ticket.entity.Event;
 import com.ticket.entity.EventStatus;
+import com.ticket.entity.Ticket;
 import com.ticket.repository.EventRepository;
+import com.ticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -32,6 +34,7 @@ import java.util.List;
 public class EventSchedulerService {
 
     private final EventRepository eventRepository;
+    private final TicketRepository ticketRepository;
     private final NotificationService notificationService;
 
     /**
@@ -116,10 +119,18 @@ public class EventSchedulerService {
 
     /**
      * Chuyển sự kiện sang trạng thái COMPLETED và gửi thông báo
+     * Đồng thời chuyển tất cả vé ACTIVE sang EXPIRED
      */
     private void completeEvent(Event event) {
         EventStatus previousStatus = event.getStatus();
         event.setStatus(EventStatus.COMPLETED);
+
+        // Chuyển tất cả vé ACTIVE của sự kiện sang EXPIRED
+        // Vé đã USED (đã check-in) sẽ giữ nguyên trạng thái
+        int expiredTickets = ticketRepository.updateActiveToExpiredByEventId(event.getId());
+        if (expiredTickets > 0) {
+            log.info("Đã chuyển {} vé ACTIVE sang EXPIRED cho sự kiện: {}", expiredTickets, event.getName());
+        }
 
         log.info("Sự kiện đã hoàn thành: {} (ID: {}) - Trạng thái trước: {} -> COMPLETED",
                 event.getName(), event.getId(), previousStatus);
@@ -127,8 +138,9 @@ public class EventSchedulerService {
         // Gửi notification cho organizer
         try {
             String message = String.format(
-                    "Sự kiện \"%s\" đã kết thúc và được chuyển sang trạng thái COMPLETED.",
-                    event.getName()
+                    "Sự kiện \"%s\" đã kết thúc và được chuyển sang trạng thái COMPLETED.%s",
+                    event.getName(),
+                    expiredTickets > 0 ? String.format(" %d vé chưa sử dụng đã hết hạn.", expiredTickets) : ""
             );
 
             notificationService.notifyEventStatusChanged(

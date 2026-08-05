@@ -67,6 +67,12 @@ public class EventRequest {
     private String thumbnailUrl;
 
     /**
+     * URL hình ảnh sơ đồ/map địa điểm (từ API upload)
+     */
+    @Size(max = 500, message = "URL map không được vượt quá 500 ký tự")
+    private String mapImageUrl;
+
+    /**
      * Điều khoản và điều kiện
      */
     @Size(max = 5000, message = "Điều khoản không được vượt quá 5000 ký tự")

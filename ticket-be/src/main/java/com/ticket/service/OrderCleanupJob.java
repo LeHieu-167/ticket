@@ -37,7 +37,7 @@ public class OrderCleanupJob {
     private final NotificationService notificationService;
 
     /**
-     * Job dọn dẹp các đơn hàng đã hết hạn
+     * Job dọn dẹp các đơn hàng đã hết hạn hoặc thanh toán thất bại
      * Chạy mỗi 60 giây (1 phút)
      */
     @Scheduled(fixedRate = 60000)
@@ -64,7 +64,24 @@ public class OrderCleanupJob {
             }
         }
 
-        // 2. Tìm các đơn PENDING đã quá hạn (không cần hoàn vé vì chưa trừ kho)
+        // 2. Tìm các đơn CONFIRMED nhưng PaymentStatus = FAILED (thanh toán thất bại)
+        // Vé cần được hoàn trả nếu chưa được hoàn trả
+        List<Order> failedPaymentOrders = orderRepository.findConfirmedOrdersWithFailedPayment();
+        
+        if (!failedPaymentOrders.isEmpty()) {
+            log.info("Tìm thấy {} đơn CONFIRMED với thanh toán FAILED, bắt đầu hoàn trả vé...", 
+                    failedPaymentOrders.size());
+            
+            for (Order order : failedPaymentOrders) {
+                try {
+                    processFailedPaymentOrder(order);
+                } catch (Exception e) {
+                    log.error("Lỗi khi xử lý đơn thanh toán thất bại {}: {}", order.getId(), e.getMessage(), e);
+                }
+            }
+        }
+
+        // 3. Tìm các đơn PENDING đã quá hạn (không cần hoàn vé vì chưa trừ kho)
         List<Order> expiredPendingOrders = orderRepository.findByStatusInAndExpiredAtBefore(
                 Arrays.asList(Order.OrderStatus.PENDING, Order.OrderStatus.PROCESSING),
                 now
@@ -81,7 +98,7 @@ public class OrderCleanupJob {
             orderRepository.saveAll(expiredPendingOrders);
         }
         
-        int totalProcessed = expiredConfirmedOrders.size() + expiredPendingOrders.size();
+        int totalProcessed = expiredConfirmedOrders.size() + failedPaymentOrders.size() + expiredPendingOrders.size();
         if (totalProcessed > 0) {
             log.info("Hoàn tất dọn dẹp: {} đơn hàng đã được xử lý", totalProcessed);
         }
@@ -137,6 +154,59 @@ public class OrderCleanupJob {
             );
         } catch (Exception e) {
             log.error("Lỗi gửi notification cho đơn hết hạn: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Xử lý đơn hàng có thanh toán thất bại:
+     * - Chuyển status sang CANCELLED
+     * - Hoàn trả số vé vào tồn kho (nếu chưa được hoàn trả)
+     * - Gửi notification cho user
+     */
+    private void processFailedPaymentOrder(Order order) {
+        log.info("Xử lý đơn thanh toán thất bại: {} - Event: {} - Số vé: {}", 
+                order.getId(), order.getEventId(), order.getTicketQuantity());
+
+        // 1. Hoàn trả vé vào tồn kho
+        Event event = eventRepository.findById(order.getEventId()).orElse(null);
+        
+        if (event != null) {
+            Integer currentTickets = event.getAvailableTickets();
+            Integer returnedTickets = order.getTicketQuantity();
+            Integer newAvailableTickets = currentTickets + returnedTickets;
+            
+            event.setAvailableTickets(newAvailableTickets);
+            eventRepository.save(event);
+            
+            log.info("Đã hoàn trả {} vé cho sự kiện {} do thanh toán thất bại - Tồn kho mới: {}", 
+                    returnedTickets, event.getId(), newAvailableTickets);
+        } else {
+            log.warn("Không tìm thấy sự kiện {} để hoàn trả vé", order.getEventId());
+        }
+
+        // 2. Cập nhật status đơn hàng
+        order.setStatus(Order.OrderStatus.CANCELLED);
+        orderRepository.save(order);
+        
+        log.info("Đơn hàng {} đã được đánh dấu CANCELLED do thanh toán thất bại", order.getId());
+
+        // 3. Gửi notification cho user
+        try {
+            String message = String.format(
+                    "Đơn hàng #%s đã bị hủy do thanh toán thất bại. %d vé đã được hoàn trả về hệ thống. " +
+                    "Nếu bạn vẫn muốn mua vé, vui lòng đặt lại.",
+                    order.getId().toString().substring(0, 8), 
+                    order.getTicketQuantity()
+            );
+            
+            notificationService.notifyOrderProcessed(
+                    order.getCustomerId(),
+                    order.getId(),
+                    "CANCELLED",
+                    message
+            );
+        } catch (Exception e) {
+            log.error("Lỗi gửi notification cho đơn thanh toán thất bại: {}", e.getMessage());
         }
     }
 }

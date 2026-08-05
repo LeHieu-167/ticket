@@ -28,6 +28,7 @@ public class TicketTypeResponse {
     private Integer totalQuantity;
     private Integer availableQuantity;
     private Integer soldQuantity;
+    private BigDecimal revenue;  // Doanh thu = soldQuantity * price
     
     // Seating configuration
     private String seatingType;       // ZONE_ONLY, ZONE_WITH_ROW, FULL_SEAT
@@ -60,6 +61,8 @@ public class TicketTypeResponse {
                 .totalQuantity(ticketType.getTotalQuantity())
                 .availableQuantity(ticketType.getAvailableQuantity())
                 .soldQuantity(ticketType.getTotalQuantity() - ticketType.getAvailableQuantity())
+                .revenue(ticketType.getPrice().multiply(
+                        BigDecimal.valueOf(ticketType.getTotalQuantity() - ticketType.getAvailableQuantity())))
                 .seatingType(ticketType.getSeatingType() != null ? ticketType.getSeatingType().name() : null)
                 .zoneName(ticketType.getZoneName())
                 .zoneDescription(ticketType.getZoneDescription())

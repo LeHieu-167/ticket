@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { 
   Ticket, Calendar, MapPin, Clock, Download, ChevronRight,
   Loader2, AlertCircle, Search, Filter, QrCode, User,
-  CheckCircle, XCircle, ChevronLeft, Wifi, WifiOff
+  CheckCircle, XCircle, ChevronLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,9 +97,11 @@ const TicketListCard = ({ ticket, onClick }: TicketListCardProps) => {
                   </span>
                   <span className={`text-xs px-2 py-1 rounded-full font-medium
                     ${ticket.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 
-                      ticket.status === 'USED' ? 'bg-slate-100 text-slate-600' : 'bg-red-100 text-red-700'}`}>
+                      ticket.status === 'USED' ? 'bg-blue-100 text-blue-600' : 
+                      ticket.status === 'EXPIRED' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>
                     {ticket.status === 'ACTIVE' ? 'Còn hiệu lực' : 
-                     ticket.status === 'USED' ? 'Đã sử dụng' : 'Hết hạn'}
+                     ticket.status === 'USED' ? 'Đã sử dụng' : 
+                     ticket.status === 'EXPIRED' ? 'Đã hết hạn' : 'Đã hủy'}
                   </span>
                 </div>
               </div>
@@ -347,7 +349,7 @@ export default function MyTicketsPage() {
     if (filterStatus === 'upcoming') {
       result = result.filter(t => isUpcoming(t.eventDate) && t.status === 'ACTIVE');
     } else if (filterStatus === 'past') {
-      result = result.filter(t => !isUpcoming(t.eventDate) || t.status !== 'ACTIVE');
+      result = result.filter(t => !isUpcoming(t.eventDate) || t.status === 'USED' || t.status === 'EXPIRED');
     }
 
     // Sort by date (upcoming first)
@@ -380,7 +382,7 @@ export default function MyTicketsPage() {
   };
 
   const upcomingCount = tickets.filter(t => isUpcoming(t.eventDate) && t.status === 'ACTIVE').length;
-  const pastCount = tickets.filter(t => !isUpcoming(t.eventDate) || t.status !== 'ACTIVE').length;
+  const pastCount = tickets.filter(t => !isUpcoming(t.eventDate) || t.status === 'USED' || t.status === 'EXPIRED').length;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -404,24 +406,6 @@ export default function MyTicketsPage() {
             <p className="text-slate-500">Quản lý tất cả vé sự kiện của bạn</p>
           </div>
           
-          {/* WebSocket Status Indicator */}
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium
-            ${isConnected 
-              ? 'bg-green-100 text-green-700' 
-              : 'bg-slate-100 text-slate-500'}`}
-          >
-            {isConnected ? (
-              <>
-                <Wifi className="w-3.5 h-3.5" />
-                <span>Realtime</span>
-              </>
-            ) : (
-              <>
-                <WifiOff className="w-3.5 h-3.5" />
-                <span>Offline</span>
-              </>
-            )}
-          </div>
         </div>
 
         {/* Search & Filter */}

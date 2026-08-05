@@ -110,7 +110,7 @@ class SimpleStompClient {
     }
 
     const lines = data.split("\n");
-    const command = lines[0];
+    const command = lines[0].trim();
 
     if (command === "CONNECTED") {
       this.connected = true;
@@ -121,13 +121,18 @@ class SimpleStompClient {
       let bodyStart = 0;
       
       for (let i = 1; i < lines.length; i++) {
-        if (lines[i] === "" || lines[i] === "\r") {
+        const line = lines[i].trim();
+        if (line === "") {
           bodyStart = i + 1;
           break;
         }
-        const [key, value] = lines[i].split(":");
-        if (key === "destination") {
-          destination = value;
+        const parts = lines[i].split(":");
+        if (parts.length >= 2) {
+          const key = parts[0].trim();
+          const value = parts.slice(1).join(":").trim();
+          if (key === "destination") {
+            destination = value;
+          }
         }
       }
 
@@ -136,7 +141,7 @@ class SimpleStompClient {
 
       // Find subscription and call handler
       this.subscriptions.forEach((handler, subDest) => {
-        if (destination.includes(subDest) || subDest.includes(destination)) {
+        if (destination === subDest || destination.includes(subDest) || subDest.includes(destination)) {
           try {
             const parsed = JSON.parse(body);
             handler(parsed);

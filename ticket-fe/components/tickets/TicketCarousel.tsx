@@ -49,33 +49,45 @@ const TicketCard = ({ ticket, index, total, onDownload }: TicketCardProps) => {
 
   const isUsed = ticket.status === 'USED';
   const isActive = ticket.status === 'ACTIVE';
+  const isExpired = ticket.status === 'EXPIRED';
+  const isCancelled = ticket.status === 'CANCELLED';
 
   return (
     <div className="w-full flex-shrink-0 px-2">
       <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden border-2 transition-all
-        ${isUsed ? 'border-slate-200 opacity-75' : 'border-violet-100'}`}
+        ${isUsed ? 'border-blue-200 opacity-85' : 
+          isExpired ? 'border-orange-200 opacity-75' :
+          isCancelled ? 'border-red-200 opacity-60' : 'border-violet-100'}`}
       >
         {/* Header */}
         <div className={`px-6 py-4 flex items-center justify-between
-          ${isUsed ? 'bg-slate-100' : 'bg-gradient-to-r from-violet-600 to-purple-600'}`}
+          ${isUsed ? 'bg-blue-100' : 
+            isExpired ? 'bg-orange-100' :
+            isCancelled ? 'bg-red-100' : 'bg-gradient-to-r from-violet-600 to-purple-600'}`}
         >
           <div className="flex items-center gap-3">
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg
-              ${isUsed ? 'bg-slate-200 text-slate-500' : 'bg-white/20 text-white'}`}
+              ${isUsed ? 'bg-blue-200 text-blue-600' : 
+                isExpired ? 'bg-orange-200 text-orange-600' :
+                isCancelled ? 'bg-red-200 text-red-600' : 'bg-white/20 text-white'}`}
             >
               {index + 1}/{total}
             </div>
-            <div className={isUsed ? 'text-slate-600' : 'text-white'}>
+            <div className={isUsed ? 'text-blue-700' : 
+              isExpired ? 'text-orange-700' :
+              isCancelled ? 'text-red-700' : 'text-white'}>
               <p className="font-bold">{ticket.ticketTypeName || ticket.ticketType || 'Vé'}</p>
               <p className="text-sm opacity-80">Vé #{index + 1}</p>
             </div>
           </div>
           <span className={`px-3 py-1.5 rounded-full text-xs font-bold
             ${isActive ? 'bg-green-100 text-green-700' : 
-              isUsed ? 'bg-slate-200 text-slate-600' : 'bg-red-100 text-red-700'}`}
+              isUsed ? 'bg-blue-200 text-blue-700' : 
+              isExpired ? 'bg-orange-200 text-orange-700' : 'bg-red-200 text-red-700'}`}
           >
             {isActive ? '✓ Còn hiệu lực' : 
-             isUsed ? '✓ Đã check-in' : '✗ Hết hạn'}
+             isUsed ? '✓ Đã check-in' : 
+             isExpired ? '⏰ Đã hết hạn' : '✗ Đã hủy'}
           </span>
         </div>
 
@@ -83,7 +95,8 @@ const TicketCard = ({ ticket, index, total, onDownload }: TicketCardProps) => {
         <div className="p-6 bg-gradient-to-b from-slate-50 to-white flex flex-col items-center">
           {/* Large QR Code with high contrast background */}
           <div className={`bg-white p-6 rounded-3xl shadow-[inset_0_2px_10px_rgba(0,0,0,0.08)] border-4 transition-all
-            ${isUsed ? 'border-slate-200 grayscale' : 'border-violet-100'}`}
+            ${isUsed ? 'border-blue-200' : 
+              isExpired || isCancelled ? 'border-slate-200 grayscale' : 'border-violet-100'}`}
           >
             {qrImageSrc ? (
               <img 
@@ -169,6 +182,19 @@ const TicketCard = ({ ticket, index, total, onDownload }: TicketCardProps) => {
             </div>
           )}
 
+          {/* Expired status */}
+          {isExpired && (
+            <div className="p-3 bg-orange-50 rounded-xl flex items-center gap-3">
+              <Clock className="w-5 h-5 text-orange-600 shrink-0" />
+              <div>
+                <p className="font-medium text-orange-800 text-sm">Vé đã hết hạn</p>
+                <p className="text-xs text-orange-600">
+                  Sự kiện đã kết thúc, vé không còn hiệu lực
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Holder info */}
           {(ticket.holderName || ticket.buyerName) && (
             <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -185,7 +211,7 @@ const TicketCard = ({ ticket, index, total, onDownload }: TicketCardProps) => {
               onClick={() => onDownload(ticket.ticketCode)}
               variant="outline"
               className="w-full h-12 rounded-xl font-semibold"
-              disabled={isUsed}
+              disabled={isUsed || isExpired || isCancelled}
             >
               <Download className="w-5 h-5 mr-2" />
               Tải QR Code

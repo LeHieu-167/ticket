@@ -1,16 +1,20 @@
 package com.ticket.controller;
 
+import com.ticket.dto.BeaconCancelRequest;
 import com.ticket.dto.MessageResponse;
 import com.ticket.dto.OrderRequest;
 import com.ticket.dto.OrderResponse;
 import com.ticket.dto.OrderStatusResponse;
+import com.ticket.security.JwtUtils;
 import com.ticket.security.UserDetailsImpl;
 import com.ticket.service.OrderQueueService;
 import com.ticket.service.OrderService;
+import com.ticket.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -34,6 +38,8 @@ public class OrderController {
 
     private final OrderService orderService;
     private final OrderQueueService orderQueueService;
+    private final JwtUtils jwtUtils;
+    private final UserService userService;
 
     /**
      * API đặt vé (chỉ cho CUSTOMER)
@@ -218,6 +224,88 @@ public class OrderController {
     public ResponseEntity<List<OrderResponse>> getOrdersByEventId(@PathVariable UUID eventId) {
         List<OrderResponse> orders = orderService.getOrdersByEventId(eventId);
         return ResponseEntity.ok(orders);
+    }
+
+    /**
+     * API hủy đơn hàng chưa thanh toán (CUSTOMER)
+     * DELETE /api/orders/{id}/cancel
+     * 
+     * Chỉ có thể hủy đơn hàng:
+     * - Chưa thanh toán (PaymentStatus != PAID)
+     * - Chưa bị hủy trước đó
+     * 
+     * Khi hủy, vé sẽ được hoàn trả về tồn kho
+     */
+    @DeleteMapping("/{id}/cancel")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<?> cancelOrder(
+            @PathVariable UUID id,
+            Authentication authentication) {
+        try {
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            UUID customerId = userDetails.getId();
+
+            log.info("Yêu cầu hủy đơn hàng {} từ customer {}", id, customerId);
+
+            OrderResponse order = orderService.cancelOrder(id, customerId);
+            return ResponseEntity.ok(order);
+        } catch (RuntimeException e) {
+            log.error("Lỗi khi hủy đơn hàng {}: {}", id, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse(e.getMessage()));
+        }
+    }
+
+    /**
+     * API hủy đơn hàng từ navigator.sendBeacon() khi người dùng rời trang
+     * POST /api/orders/beacon-cancel
+     * 
+     * Endpoint này:
+     * - Không yêu cầu authentication header (sendBeacon không hỗ trợ)
+     * - Xác thực JWT token từ request body
+     * - Kiểm tra quyền sở hữu đơn hàng trước khi hủy (tránh IDOR)
+     * - Luôn trả về 200 OK (silent fail để tránh tấn công dò thông tin)
+     */
+    @PostMapping(value = "/beacon-cancel", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Void> beaconCancelOrder(@RequestBody BeaconCancelRequest request) {
+        log.info("Nhận yêu cầu beacon-cancel cho orderId: {}", request.getOrderId());
+        
+        // Validate input
+        if (request.getOrderId() == null || request.getToken() == null || request.getToken().isEmpty()) {
+            log.warn("Beacon cancel - Request không hợp lệ (thiếu orderId hoặc token)");
+            return ResponseEntity.ok().build(); // Silent fail
+        }
+
+        try {
+            // 1. Xác thực JWT token thủ công
+            if (!jwtUtils.validateJwtToken(request.getToken())) {
+                log.warn("Beacon cancel - Token không hợp lệ cho orderId: {}", request.getOrderId());
+                return ResponseEntity.ok().build(); // Silent fail
+            }
+
+            // 2. Lấy username từ token
+            String username = jwtUtils.getUserNameFromJwtToken(request.getToken());
+            
+            // 3. Lấy userId từ username
+            UUID customerId = userService.getUserIdByUsername(username);
+            if (customerId == null) {
+                log.warn("Beacon cancel - Không tìm thấy user với username: {}", username);
+                return ResponseEntity.ok().build(); // Silent fail
+            }
+
+            // 4. Gọi service để hủy đơn hàng (có kiểm tra quyền sở hữu)
+            orderService.cancelOrderByBeacon(request.getOrderId(), customerId);
+            
+            log.info("Beacon cancel - Xử lý thành công cho orderId: {}", request.getOrderId());
+            
+        } catch (Exception e) {
+            // Silent fail - không báo lỗi ra ngoài để tránh tấn công dò thông tin
+            log.error("Beacon cancel - Lỗi khi xử lý orderId {}: {}", 
+                    request.getOrderId(), e.getMessage());
+        }
+
+        // Luôn trả về 200 OK
+        return ResponseEntity.ok().build();
     }
 }
 

@@ -3,7 +3,9 @@ package com.ticket.service;
 import com.ticket.config.VNPayConfig;
 import com.ticket.dto.PaymentRequest;
 import com.ticket.dto.PaymentResponse;
+import com.ticket.entity.Event;
 import com.ticket.entity.Order;
+import com.ticket.repository.EventRepository;
 import com.ticket.repository.OrderRepository;
 import com.ticket.util.VNPayUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,6 +28,7 @@ public class VNPayService {
 
     private final VNPayConfig vnPayConfig;
     private final OrderRepository orderRepository;
+    private final EventRepository eventRepository;
     private final NotificationService notificationService;
     private final TicketService ticketService;
 
@@ -206,6 +209,15 @@ public class VNPayService {
                 // Lưu order trước khi tạo vé
                 orderRepository.save(order);
 
+                // 📊 CẬP NHẬT THỐNG KÊ SỰ KIỆN (số vé đã bán, doanh thu)
+                try {
+                    updateEventStatistics(order);
+                    log.info("Đã cập nhật thống kê cho sự kiện - Order ID: {}", order.getId());
+                } catch (Exception e) {
+                    log.error("Lỗi cập nhật thống kê sự kiện: {}", e.getMessage(), e);
+                    // Vẫn tiếp tục - order đã được thanh toán
+                }
+
                 // 🎫 TẠO VÉ SAU KHI THANH TOÁN THÀNH CÔNG
                 try {
                     var tickets = ticketService.generateTicketsForOrder(order.getId());
@@ -230,8 +242,12 @@ public class VNPayService {
             } else {
                 // Thanh toán thất bại
                 order.setPaymentStatus(Order.PaymentStatus.FAILED);
+                order.setStatus(Order.OrderStatus.CANCELLED); // Hủy đơn hàng
                 log.warn("Thanh toán thất bại - Order ID: {}, ResponseCode: {}", 
                         order.getId(), vnpResponseCode);
+
+                // QUAN TRỌNG: Hoàn trả vé vào tồn kho ngay lập tức
+                returnTicketsToInventory(order);
 
                 // Gửi notification thất bại
                 try {
@@ -240,7 +256,7 @@ public class VNPayService {
                             order.getCustomerId(), 
                             order.getId(), 
                             false, 
-                            "Thanh toán thất bại: " + errorMessage
+                            "Thanh toán thất bại: " + errorMessage + ". Vé đã được hoàn trả về hệ thống."
                     );
                 } catch (Exception e) {
                     log.error("Lỗi gửi notification: {}", e.getMessage());
@@ -253,6 +269,30 @@ public class VNPayService {
         } catch (Exception e) {
             log.error("Lỗi xử lý callback VNPay: {}", e.getMessage(), e);
             return false;
+        }
+    }
+
+    /**
+     * Hoàn trả vé vào tồn kho khi thanh toán thất bại hoặc đơn hàng bị hủy
+     */
+    private void returnTicketsToInventory(Order order) {
+        try {
+            Event event = eventRepository.findById(order.getEventId()).orElse(null);
+            if (event != null) {
+                Integer currentTickets = event.getAvailableTickets();
+                Integer returnedTickets = order.getTicketQuantity();
+                Integer newAvailableTickets = currentTickets + returnedTickets;
+                
+                event.setAvailableTickets(newAvailableTickets);
+                eventRepository.save(event);
+                
+                log.info("Đã hoàn trả {} vé cho sự kiện {} do thanh toán thất bại - Tồn kho mới: {}", 
+                        returnedTickets, event.getId(), newAvailableTickets);
+            } else {
+                log.warn("Không tìm thấy sự kiện {} để hoàn trả vé", order.getEventId());
+            }
+        } catch (Exception e) {
+            log.error("Lỗi hoàn trả vé cho đơn hàng {}: {}", order.getId(), e.getMessage(), e);
         }
     }
 
@@ -275,6 +315,31 @@ public class VNPayService {
             case "79" -> "Giao dịch không thành công do: KH nhập sai mật khẩu thanh toán quá số lần quy định. Xin quý khách vui lòng thực hiện lại giao dịch";
             default -> "Giao dịch thất bại";
         };
+    }
+
+    /**
+     * Cập nhật thống kê sự kiện sau khi thanh toán thành công
+     * - Tăng số vé đã bán (ticketsSold)
+     * - Tăng tổng doanh thu (totalRevenue)
+     */
+    private void updateEventStatistics(Order order) {
+        Event event = eventRepository.findById(order.getEventId())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện: " + order.getEventId()));
+
+        // Cập nhật số vé đã bán
+        Integer currentSold = event.getTicketsSold() != null ? event.getTicketsSold() : 0;
+        event.setTicketsSold(currentSold + order.getTicketQuantity());
+
+        // Cập nhật tổng doanh thu
+        java.math.BigDecimal currentRevenue = event.getTotalRevenue() != null 
+                ? event.getTotalRevenue() 
+                : java.math.BigDecimal.ZERO;
+        event.setTotalRevenue(currentRevenue.add(order.getTotalPrice()));
+
+        eventRepository.save(event);
+        
+        log.info("Đã cập nhật thống kê sự kiện {} - Vé đã bán: {}, Doanh thu: {}", 
+                event.getId(), event.getTicketsSold(), event.getTotalRevenue());
     }
 }
 

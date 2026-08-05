@@ -314,6 +314,7 @@ export default function EventDetailPage() {
   // Determine which image to show in banner - prefer banner, fallback to thumbnail, then default
   const hasBannerImage = event.bannerImageUrl && event.bannerImageUrl.trim() !== '';
   const hasThumbnailImage = event.thumbnailUrl && event.thumbnailUrl.trim() !== '';
+  const hasMapImage = event.mapImageUrl && event.mapImageUrl.trim() !== '';
   const displayImage = hasBannerImage 
     ? event.bannerImageUrl 
     : hasThumbnailImage 
@@ -327,6 +328,9 @@ export default function EventDetailPage() {
   }
   if (hasThumbnailImage) {
     galleryImages.push({ url: event.thumbnailUrl!, label: 'Thumbnail' });
+  }
+  if (hasMapImage) {
+    galleryImages.push({ url: event.mapImageUrl!, label: 'Sơ đồ địa điểm' });
   }
   
   const totalPrice = event.ticketPrice * selectedTicketCount;
@@ -353,13 +357,13 @@ export default function EventDetailPage() {
     // Check if user is logged in
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      // Redirect to login with return URL - sử dụng event.id cho booking vì backend cần UUID
-      router.push(`/login?redirect=/booking/${event.id}/tickets`);
+      // Redirect to login with return URL
+      router.push(`/login?redirect=/booking/${eventSlug}/tickets`);
       return;
     }
     
-    // Navigate to booking flow - sử dụng event.id vì backend cần UUID
-    router.push(`/booking/${event.id}/tickets`);
+    // Navigate to booking flow
+    router.push(`/booking/${eventSlug}/tickets`);
   };
 
   const handleShare = async () => {
@@ -422,26 +426,6 @@ export default function EventDetailPage() {
                 Quay lại
               </Button>
             </Link>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              className="bg-white/90 hover:bg-white backdrop-blur-sm rounded-full"
-              onClick={(e) => { e.stopPropagation(); handleShare(); }}
-            >
-              <Share2 className="w-4 h-4" />
-            </Button>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              className={`backdrop-blur-sm rounded-full transition-colors ${isLiked ? 'bg-red-500 text-white hover:bg-red-600 border-red-500' : 'bg-white/90 hover:bg-white'}`}
-              onClick={(e) => { e.stopPropagation(); setIsLiked(!isLiked); }}
-            >
-              <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
-            </Button>
           </div>
 
           {/* Category Badge */}
@@ -527,6 +511,59 @@ Hãy đặt vé ngay để không bỏ lỡ cơ hội tham gia sự kiện này!
                 </CardContent>
               </Card>
 
+              {/* Map/Location Image Section */}
+              {event.mapImageUrl && event.mapImageUrl.trim() !== '' && (
+                <Card className="border-0 shadow-lg rounded-3xl overflow-hidden">
+                  <CardContent className="p-6 md:p-8">
+                    <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                      <MapPin className="w-5 h-5 text-violet-600" />
+                      Sơ đồ địa điểm
+                    </h2>
+                    <p className="text-slate-500 text-sm mb-4">
+                      Xem sơ đồ để hiểu rõ hơn về vị trí tổ chức sự kiện.
+                    </p>
+                    <div 
+                      className="relative w-full rounded-2xl overflow-hidden cursor-pointer group border border-slate-200"
+                      onClick={() => {
+                        // Open map image in fullscreen modal
+                        const mapIndex = galleryImages.findIndex(img => img.label === 'Sơ đồ địa điểm');
+                        if (mapIndex >= 0) {
+                          setCurrentImageIndex(mapIndex);
+                          setIsGalleryOpen(true);
+                        } else {
+                          // If not in gallery, add temporarily and open
+                          setCurrentImageIndex(galleryImages.length);
+                          setIsGalleryOpen(true);
+                        }
+                      }}
+                    >
+                      <img 
+                        src={event.mapImageUrl}
+                        alt={`${event.name} - Sơ đồ địa điểm`}
+                        className="w-full h-auto max-h-[500px] object-contain bg-slate-50 transition-transform duration-300 group-hover:scale-[1.02]"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 text-white px-4 py-2 rounded-full text-sm flex items-center gap-2">
+                          <ImageIcon className="w-4 h-4" />
+                          Click để phóng to
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Location info below map */}
+                    <div className="mt-4 p-4 bg-violet-50 rounded-xl flex items-start gap-3">
+                      <MapPin className="w-5 h-5 text-violet-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-slate-900">{event.location}</p>
+                        {event.address && (
+                          <p className="text-slate-600 text-sm mt-1">{event.address}</p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Event Images Gallery - only shows if both banner and thumbnail exist */}
               <EventImagesGallery
                 bannerImageUrl={event.bannerImageUrl}
@@ -534,7 +571,6 @@ Hãy đặt vé ngay để không bỏ lỡ cơ hội tham gia sự kiện này!
                 eventName={event.name}
                 onImageClick={handleGalleryImageClick}
               />
-
 
               {/* Terms and Conditions */}
               {event.termsAndConditions && (
@@ -567,14 +603,58 @@ Hãy đặt vé ngay để không bỏ lỡ cơ hội tham gia sự kiện này!
                   </div>
                   
                   <CardContent className="p-6 space-y-6">
-                    {/* Ticket Price */}
-                    <div className="text-center py-4 bg-slate-50 rounded-2xl">
-                      <p className="text-sm text-slate-500 mb-1">Giá vé</p>
-                      <p className="text-3xl font-black text-violet-600">
-                        {formatCurrency(event.ticketPrice)}
-                      </p>
-                      <p className="text-xs text-slate-400 mt-1">/ 1 vé</p>
-                    </div>
+                    {/* Ticket Types List */}
+                    {event.ticketTypes && event.ticketTypes.length > 0 ? (
+                      <div className="space-y-3">
+                        <p className="text-sm font-medium text-slate-700">Các loại vé</p>
+                        {event.ticketTypes.map((ticketType, index) => (
+                          <div 
+                            key={ticketType.id || index}
+                            className="p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-violet-200 transition-colors"
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex-1">
+                                <h4 className="font-bold text-slate-900">{ticketType.name}</h4>
+                                {ticketType.zoneName && (
+                                  <p className="text-xs text-slate-500">{ticketType.zoneName}</p>
+                                )}
+                              </div>
+                              <p className="text-lg font-black text-violet-600">
+                                {formatCurrency(ticketType.price)}
+                              </p>
+                            </div>
+                            {ticketType.description && (
+                              <p className="text-xs text-slate-500 mb-2">{ticketType.description}</p>
+                            )}
+                            <div className="flex items-center justify-between text-xs">
+                              <span className={`font-medium ${
+                                ticketType.availableQuantity === 0 
+                                  ? 'text-red-600' 
+                                  : ticketType.availableQuantity <= 10 
+                                    ? 'text-orange-600' 
+                                    : 'text-green-600'
+                              }`}>
+                                {ticketType.availableQuantity === 0 
+                                  ? 'Hết vé' 
+                                  : `Còn ${ticketType.availableQuantity} vé`}
+                              </span>
+                              <span className="text-slate-400">
+                                / {ticketType.totalQuantity} vé
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      /* Fallback: Single Ticket Price */
+                      <div className="text-center py-4 bg-slate-50 rounded-2xl">
+                        <p className="text-sm text-slate-500 mb-1">Giá vé</p>
+                        <p className="text-3xl font-black text-violet-600">
+                          {formatCurrency(event.ticketPrice)}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">/ 1 vé</p>
+                      </div>
+                    )}
 
                     {/* CTA Button */}
                     <Button 
@@ -606,10 +686,7 @@ Hãy đặt vé ngay để không bỏ lỡ cơ hội tham gia sự kiện này!
                         <CheckCircle className="w-4 h-4 text-green-500" />
                         <span>Thanh toán an toàn & bảo mật</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                        <span>Nhận vé điện tử qua email</span>
-                      </div>
+                
                       <div className="flex items-center gap-2">
                         <CheckCircle className="w-4 h-4 text-green-500" />
                         <span>Hỗ trợ 24/7</span>
@@ -649,7 +726,7 @@ Hãy đặt vé ngay để không bỏ lỡ cơ hội tham gia sự kiện này!
               <span className="text-xl font-bold">TicketHub</span>
             </div>
             <p className="text-slate-400 text-sm">
-              © 2024 TicketHub. Nền tảng đặt vé sự kiện hàng đầu Việt Nam.
+              © 2025 TicketHub. Nền tảng đặt vé sự kiện hàng đầu Việt Nam.
             </p>
           </div>
         </div>

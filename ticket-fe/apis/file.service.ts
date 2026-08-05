@@ -3,7 +3,7 @@ import api from "@/config/axios.config";
 /**
  * Loại ảnh upload
  */
-export type ImageType = "event" | "banner" | "thumbnail" | "profile" | "gallery";
+export type ImageType = "event" | "banner" | "thumbnail" | "profile" | "gallery" | "map";
 
 /**
  * Response từ API upload file (Cloudinary)

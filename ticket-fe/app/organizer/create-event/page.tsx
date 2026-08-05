@@ -299,12 +299,16 @@ export default function CreateEventPage() {
   // Image upload states
   const [bannerUrl, setBannerUrl] = useState<string>("");
   const [thumbnailUrl, setThumbnailUrl] = useState<string>("");
+  const [mapImageUrl, setMapImageUrl] = useState<string>("");
   const [bannerUploading, setBannerUploading] = useState(false);
   const [thumbnailUploading, setThumbnailUploading] = useState(false);
+  const [mapImageUploading, setMapImageUploading] = useState(false);
   const [bannerProgress, setBannerProgress] = useState(0);
   const [thumbnailProgress, setThumbnailProgress] = useState(0);
+  const [mapImageProgress, setMapImageProgress] = useState(0);
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [thumbnailError, setThumbnailError] = useState<string | null>(null);
+  const [mapImageError, setMapImageError] = useState<string | null>(null);
 
   // Seat map states
   const [seatMapImage, setSeatMapImage] = useState<File | null>(null);
@@ -458,6 +462,41 @@ export default function CreateEventPage() {
     setThumbnailError(null);
   };
 
+  // Handle map image upload
+  const handleMapImageUpload = async (file: File) => {
+    setMapImageError(null);
+    setMapImageUploading(true);
+    setMapImageProgress(0);
+    
+    try {
+      const response = await fileService.uploadFile(file, 'map', (progress) => {
+        setMapImageProgress(progress);
+      });
+      
+      setMapImageUrl(response.url);
+      toast.success('Tải ảnh sơ đồ thành công!');
+    } catch (error: any) {
+      console.error('Error uploading map image:', error);
+      setMapImageError('Lỗi tải ảnh. Vui lòng thử lại.');
+      toast.error('Không thể tải ảnh sơ đồ');
+    } finally {
+      setMapImageUploading(false);
+    }
+  };
+
+  // Handle remove map image
+  const handleRemoveMapImage = async () => {
+    if (mapImageUrl) {
+      try {
+        await fileService.deleteFileByUrl(mapImageUrl);
+      } catch (error) {
+        console.error('Error deleting map image:', error);
+      }
+    }
+    setMapImageUrl("");
+    setMapImageError(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
@@ -487,6 +526,7 @@ export default function CreateEventPage() {
         availableTickets: totalTickets,
         bannerImageUrl: bannerUrl || undefined,
         thumbnailUrl: thumbnailUrl || undefined,
+        mapImageUrl: mapImageUrl || undefined,
       };
 
       console.log("Event data:", eventData);
@@ -509,9 +549,14 @@ export default function CreateEventPage() {
         console.error("Error response:", apiError.response?.data);
         console.error("Error status:", apiError.response?.status);
         
-        // Nếu lỗi 401 - hướng dẫn user đăng nhập lại với role ORGANIZER
+        // Nếu lỗi 400 - thông tin sự kiện không chính xác
+        if (apiError.response?.status === 400) {
+          throw new Error("Thông tin sự kiện không chính xác, vui lòng thử lại.");
+        }
+        
+        // Nếu lỗi 401 - thông tin sự kiện không chính xác hoặc phiên hết hạn
         if (apiError.response?.status === 401) {
-          throw new Error("Phiên đăng nhập hết hạn hoặc bạn không có quyền. Vui lòng đăng nhập lại với tài khoản Nhà tổ chức (Organizer).");
+          throw new Error("Thông tin sự kiện không chính xác, vui lòng thử lại.");
         }
         
         // Nếu lỗi 403 - không có quyền
@@ -608,6 +653,27 @@ export default function CreateEventPage() {
                   placeholder="Mô tả chi tiết về sự kiện..."
                   rows={4}
                   className="mt-1"
+                />
+              </div>
+
+              {/* Map Image Upload Section */}
+              <div className="p-4 rounded-xl border border-slate-200">
+                <div className="flex items-center gap-2 mb-3">
+                  <MapPin className="w-5 h-5 text-violet-600" />
+                  <h3 className="text-sm font-semibold text-slate-800">Sơ đồ địa điểm / Bản đồ</h3>
+                </div>
+                <p className="text-sm text-slate-500 mb-4">
+                  Tải lên ảnh sơ đồ địa điểm tổ chức sự kiện.
+                </p>
+                <ImageUploadBox
+                  label="Ảnh sơ đồ / Bản đồ"
+                  imageUrl={mapImageUrl}
+                  isUploading={mapImageUploading}
+                  uploadProgress={mapImageProgress}
+                  error={mapImageError || undefined}
+                  onFileSelect={handleMapImageUpload}
+                  onRemove={handleRemoveMapImage}
+                  helperText="PNG, JPG tối đa 5MB - Khuyến nghị ảnh rõ ràng, có chú thích"
                 />
               </div>
 
@@ -857,60 +923,6 @@ export default function CreateEventPage() {
             </CardContent>
           </Card>
 
-          {/* Seat Map */}
-          <Card className="border-0 shadow-lg rounded-2xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-violet-600" />
-                Sơ đồ ghế (Tùy chọn)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="hasSeatMap"
-                  checked={hasSeatMap}
-                  onChange={(e) => setHasSeatMap(e.target.checked)}
-                  className="w-4 h-4 text-violet-600 rounded"
-                />
-                <Label htmlFor="hasSeatMap" className="cursor-pointer">
-                  Sự kiện này có sơ đồ ghế ngồi
-                </Label>
-              </div>
-
-              {hasSeatMap && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                  <FileUpload
-                    label="Ảnh sơ đồ ghế"
-                    accept="image/*"
-                    icon={<ImageIcon className="w-8 h-8 text-slate-400" />}
-                    fileName={seatMapImage?.name}
-                    onFileSelect={setSeatMapImage}
-                    helperText="Ảnh sơ đồ venue"
-                  />
-                  <FileUpload
-                    label="File JSON tọa độ ghế"
-                    accept=".json"
-                    icon={<FileJson className="w-8 h-8 text-slate-400" />}
-                    fileName={seatMapJson?.name}
-                    onFileSelect={setSeatMapJson}
-                    helperText="File JSON chứa tọa độ ghế"
-                  />
-                </div>
-              )}
-
-              {hasSeatMap && (
-                <div className="p-4 bg-blue-50 rounded-xl">
-                  <p className="text-sm font-medium text-blue-800 mb-2">Mẫu file JSON tọa độ ghế:</p>
-                  <pre className="text-xs text-blue-600 overflow-x-auto bg-blue-100 p-3 rounded-lg">
-                    {/* {JSON.stringify(SAMPLE_SEAT_MAP_JSON, null, 2)} */}
-                  </pre>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Terms */}
           <Card className="border-0 shadow-lg rounded-2xl">
             <CardHeader>
@@ -940,7 +952,7 @@ export default function CreateEventPage() {
             </Link>
             <Button 
               type="submit" 
-              disabled={isSubmitting || bannerUploading || thumbnailUploading}
+              disabled={isSubmitting || bannerUploading || thumbnailUploading || mapImageUploading}
               className="bg-violet-600 hover:bg-violet-700 rounded-xl px-8"
             >
               {isSubmitting ? (
@@ -948,7 +960,7 @@ export default function CreateEventPage() {
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Đang tạo...
                 </>
-              ) : bannerUploading || thumbnailUploading ? (
+              ) : bannerUploading || thumbnailUploading || mapImageUploading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Đang tải ảnh...

@@ -29,10 +29,13 @@ public class EventResponse {
     private BigDecimal ticketPrice;
     private Integer availableTickets;
     private Integer totalTickets;
+    private Integer ticketsSold;      // Số vé đã bán
+    private BigDecimal totalRevenue;  // Tổng doanh thu
     private UUID organizerId;
     private String organizerName;
     private String bannerImageUrl;
     private String thumbnailUrl;
+    private String mapImageUrl;
     private String termsAndConditions;
     
     @JsonProperty("isActive")
@@ -62,10 +65,13 @@ public class EventResponse {
         response.setTicketPrice(event.getTicketPrice());
         response.setAvailableTickets(event.getAvailableTickets());
         response.setTotalTickets(event.getTotalTickets());
+        response.setTicketsSold(event.getTicketsSold() != null ? event.getTicketsSold() : 0);
+        response.setTotalRevenue(event.getTotalRevenue() != null ? event.getTotalRevenue() : BigDecimal.ZERO);
         response.setOrganizerId(event.getOrganizerId());
         response.setOrganizerName(event.getOrganizerName());
         response.setBannerImageUrl(event.getBannerImageUrl());
         response.setThumbnailUrl(event.getThumbnailUrl());
+        response.setMapImageUrl(event.getMapImageUrl());
         response.setTermsAndConditions(event.getTermsAndConditions());
         response.setActive(event.isActive());
         response.setStatus(event.getStatus());

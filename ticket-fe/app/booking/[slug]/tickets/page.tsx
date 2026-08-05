@@ -11,8 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import eventService, { EventResponse } from "@/apis/event.service";
 import ticketService, { TicketTypeResponse } from "@/apis/ticket.service";
+import { orderService } from "@/apis/order.service";
 import { useBookingSession } from "@/hooks/use-booking-session";
 import { BookingCountdown } from "@/components/ui/booking-countdown";
+import { useAutoCancelOrder, setCurrentOrderId, clearCurrentOrderId, getCurrentOrderId } from "@/hooks/use-auto-cancel-order";
+import { useBookingNavigation } from "@/components/providers/BookingNavigationContext";
 
 // --- TYPES ---
 
@@ -31,12 +34,6 @@ interface TicketType {
 
 // Color palette for ticket types based on name
 const getTicketTypeColor = (name: string, index: number): string => {
-  const nameLower = name.toLowerCase();
-  if (nameLower.includes('vip')) return 'from-amber-500 to-orange-600';
-  if (nameLower.includes('premium')) return 'from-violet-500 to-purple-600';
-  if (nameLower.includes('gold')) return 'from-yellow-500 to-amber-600';
-  if (nameLower.includes('silver')) return 'from-slate-400 to-slate-600';
-  if (nameLower.includes('early')) return 'from-emerald-500 to-teal-600';
   
   // Default colors based on index
   const colors = [
@@ -98,10 +95,9 @@ const formatDate = (isoString: string) => {
 const BookingSteps = ({ currentStep }: { currentStep: number }) => {
   const steps = [
     { id: 1, name: 'Chọn vé', icon: Ticket },
-    { id: 2, name: 'Chọn ghế', icon: () => <span className="text-sm font-bold">🪑</span> },
-    { id: 3, name: 'Thông tin', icon: () => <span className="text-sm font-bold">📝</span> },
-    { id: 4, name: 'Thanh toán', icon: () => <span className="text-sm font-bold">💳</span> },
-    { id: 5, name: 'Hoàn tất', icon: CheckCircle },
+    { id: 2, name: 'Thông tin', icon: () => <span className="text-sm font-bold">📝</span> },
+    { id: 3, name: 'Thanh toán', icon: () => <span className="text-sm font-bold">💳</span> },
+    { id: 4, name: 'Hoàn tất', icon: CheckCircle },
   ];
 
   return (
@@ -309,11 +305,6 @@ const OrderSummary = ({ event, selectedTickets, ticketTypes }: OrderSummaryProps
               </div>
             </div>
 
-            {/* Security Note */}
-            <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-3 rounded-xl">
-              <ShieldCheck className="w-4 h-4 text-green-500" />
-              <span>Thanh toán an toàn & bảo mật</span>
-            </div>
           </>
         )}
       </CardContent>
@@ -331,6 +322,40 @@ export default function TicketSelectionPage({ params }: { params: Promise<{ slug
   const [error, setError] = useState<string | null>(null);
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [selectedTickets, setSelectedTickets] = useState<{ [key: string]: number }>({});
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+
+  // Hook tự động hủy đơn hàng khi rời khỏi luồng đặt vé (beforeunload, pagehide)
+  useAutoCancelOrder();
+  
+  // Hook để navigate an toàn với popup xác nhận
+  const { safeNavigate } = useBookingNavigation();
+
+  /**
+   * LOGIC "CLEAN-UP ON ENTRY"
+   * Khi vào trang chọn vé, kiểm tra xem có đơn hàng cũ không.
+   * Nếu có -> Hủy đơn cũ (trả vé) -> Xóa session
+   * Điều này đảm bảo vé không bị giữ ảo khi user quay lại từ đầu
+   */
+  useEffect(() => {
+    const cleanupOldOrder = async () => {
+      const oldOrderId = getCurrentOrderId();
+      if (oldOrderId) {
+        console.log('🧹 Clean-up: Hủy đơn hàng cũ:', oldOrderId);
+        try {
+          await orderService.cancelOrder(oldOrderId);
+          console.log('✅ Đã hủy đơn hàng cũ thành công');
+        } catch (err) {
+          console.warn('⚠️ Không thể hủy đơn cũ (có thể đã hết hạn):', err);
+        } finally {
+          // Luôn xóa session dù API thành công hay thất bại
+          clearCurrentOrderId();
+          sessionStorage.removeItem('bookingData');
+        }
+      }
+    };
+    
+    cleanupOldOrder();
+  }, []); // Chạy 1 lần khi component mount
 
   // Booking session với countdown timer - bắt đầu ngay khi vào trang
   const bookingSession = useBookingSession({
@@ -401,48 +426,75 @@ export default function TicketSelectionPage({ params }: { params: Promise<{ slug
   };
 
   const totalTickets = Object.values(selectedTickets).reduce((sum, qty) => sum + qty, 0);
-  const canProceed = totalTickets > 0;
+  const canProceed = totalTickets > 0 && !isCreatingOrder;
 
-  const handleContinue = () => {
-    // Build booking data with selected tickets
-    const selectedTicketTypes = ticketTypes
-      .filter(t => selectedTickets[t.id] > 0)
-      .map(t => ({
-        ticketTypeId: t.id, // This is the actual ID from backend
-        name: t.name,
-        price: t.price,
-        quantity: selectedTickets[t.id]
+  /**
+   * HANDLE CONTINUE - TẠO ĐƠN HÀNG SỚM
+   * Theo kiến trúc Final Architecture:
+   * - Tạo đơn hàng ngay khi bấm "Tiếp tục" (không đợi đến trang Payment)
+   * - Vé được trừ khỏi tồn kho ngay lập tức
+   * - orderId được lưu vào sessionStorage để hook auto-cancel hoạt động
+   */
+  const handleContinue = async () => {
+    if (isCreatingOrder || !event) return;
+    
+    setIsCreatingOrder(true);
+    
+    try {
+      // Build booking data with selected tickets
+      const selectedTicketTypes = ticketTypes
+        .filter(t => selectedTickets[t.id] > 0)
+        .map(t => ({
+          ticketTypeId: t.id,
+          name: t.name,
+          price: t.price,
+          quantity: selectedTickets[t.id]
+        }));
+      
+      const totalAmount = selectedTicketTypes.reduce(
+        (sum, t) => sum + (t.price * t.quantity), 
+        0
+      );
+      const totalQuantity = selectedTicketTypes.reduce(
+        (sum, t) => sum + t.quantity, 
+        0
+      );
+
+      console.log('🚀 Đang tạo đơn hàng với', totalQuantity, 'vé...');
+      
+      // GỌI API INIT ĐỂ TẠO ĐƠN HÀNG
+      const { orderId, expiredAt } = await orderService.initOrder(
+        event.id, 
+        totalQuantity
+      );
+      
+      console.log('✅ Đã tạo đơn hàng:', orderId);
+      
+      // LƯU ORDER ID VÀO SESSION STORAGE
+      // Hook useAutoCancelOrder sẽ sử dụng ID này để hủy đơn khi user rời trang
+      setCurrentOrderId(orderId);
+      
+      // Lưu dữ liệu booking
+      sessionStorage.setItem('bookingData', JSON.stringify({
+        eventId: event.id,
+        eventSlug: slug,
+        eventName: event.name,
+        eventDate: event.eventDate,
+        selectedTickets,
+        ticketTypes: selectedTicketTypes,
+        totalAmount,
+        totalQuantity,
+        orderId,      // Lưu orderId vào bookingData
+        expiredAt,    // Lưu thời gian hết hạn
       }));
-    
-    // Calculate total
-    const totalAmount = selectedTicketTypes.reduce(
-      (sum, t) => sum + (t.price * t.quantity), 
-      0
-    );
-    const totalQuantity = selectedTicketTypes.reduce(
-      (sum, t) => sum + t.quantity, 
-      0
-    );
-    
-    // Save selection to session/context
-    sessionStorage.setItem('bookingData', JSON.stringify({
-      eventId: event?.id, // Store actual UUID for backend
-      eventSlug: slug,    // Store slug for navigation
-      eventName: event?.name,
-      eventDate: event?.eventDate,
-      selectedTickets,
-      ticketTypes: selectedTicketTypes,
-      totalAmount,
-      totalQuantity
-    }));
-    
-    // Check if event has seat map
-    const hasSeatMap = false; // In real app, check event.hasSeatMap
-    
-    if (hasSeatMap) {
-      router.push(`/booking/${slug}/seats`);
-    } else {
+      
+      // Chuyển sang trang info
       router.push(`/booking/${slug}/info`);
+      
+    } catch (err: any) {
+      console.error('❌ Lỗi khi tạo đơn hàng:', err);
+      setError(err.message || 'Không thể tạo đơn hàng. Vui lòng thử lại.');
+      setIsCreatingOrder(false);
     }
   };
 
@@ -478,10 +530,13 @@ export default function TicketSelectionPage({ params }: { params: Promise<{ slug
       <header className="bg-white border-b sticky top-0 z-50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            <Link href={`/events/${slug}`} className="flex items-center gap-2 text-slate-600 hover:text-violet-600">
+            <button 
+              onClick={() => safeNavigate(`/events/${slug}`)}
+              className="flex items-center gap-2 text-slate-600 hover:text-violet-600"
+            >
               <ChevronLeft className="w-5 h-5" />
               <span className="font-medium">Quay lại</span>
-            </Link>
+            </button>
             <Link href="/" className="flex items-center gap-2">
               <Ticket className="h-6 w-6 text-violet-600" />
               <span className="text-xl font-bold text-slate-900">TicketHub</span>
@@ -564,19 +619,31 @@ export default function TicketSelectionPage({ params }: { params: Promise<{ slug
             <p className="text-xl font-bold text-slate-900">{totalTickets} vé</p>
           </div>
           <div className="flex items-center gap-3 flex-1 sm:flex-none">
-            <Link href={`/events/${slug}`} className="flex-1 sm:flex-none">
-              <Button variant="outline" className="w-full sm:w-auto">
-                <ChevronLeft className="w-4 h-4 mr-2" />
-                Quay lại
-              </Button>
-            </Link>
+            <Button 
+              variant="outline" 
+              className="flex-1 sm:flex-none w-full sm:w-auto" 
+              disabled={isCreatingOrder}
+              onClick={() => safeNavigate(`/events/${slug}`)}
+            >
+              <ChevronLeft className="w-4 h-4 mr-2" />
+              Quay lại
+            </Button>
             <Button 
               onClick={handleContinue}
               disabled={!canProceed}
               className="flex-1 sm:flex-none bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700"
             >
-              Tiếp tục
-              <ChevronRight className="w-4 h-4 ml-2" />
+              {isCreatingOrder ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : (
+                <>
+                  Tiếp tục
+                  <ChevronRight className="w-4 h-4 ml-2" />
+                </>
+              )}
             </Button>
           </div>
         </div>

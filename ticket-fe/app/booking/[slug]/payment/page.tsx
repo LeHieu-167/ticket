@@ -13,6 +13,8 @@ import { orderService, OrderStatusResponse } from "@/apis/order.service";
 import { paymentService } from "@/apis/payment.service";
 import { useBookingSession } from "@/hooks/use-booking-session";
 import { BookingCountdown } from "@/components/ui/booking-countdown";
+import { useAutoCancelOrder, setPaymentRedirectFlag, clearPaymentRedirectFlag } from "@/hooks/use-auto-cancel-order";
+import { useBookingNavigation } from "@/components/providers/BookingNavigationContext";
 
 // --- TYPES ---
 
@@ -71,10 +73,9 @@ const formatCurrency = (amount: number) => {
 const BookingSteps = ({ currentStep }: { currentStep: number }) => {
   const steps = [
     { id: 1, name: 'Chọn vé' },
-    { id: 2, name: 'Chọn ghế' },
-    { id: 3, name: 'Thông tin' },
-    { id: 4, name: 'Thanh toán' },
-    { id: 5, name: 'Hoàn tất' },
+    { id: 2, name: 'Thông tin' },
+    { id: 3, name: 'Thanh toán' },
+    { id: 4, name: 'Hoàn tất' },
   ];
 
   return (
@@ -159,6 +160,12 @@ export default function PaymentPage({ params }: { params: Promise<{ slug: string
   const [orderStatus, setOrderStatus] = useState<OrderStatusResponse | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>('');
 
+  // Hook tự động hủy đơn hàng khi rời khỏi luồng đặt vé (beforeunload, pagehide)
+  useAutoCancelOrder();
+  
+  // Hook để navigate an toàn với popup xác nhận
+  const { safeNavigate } = useBookingNavigation();
+
   // Booking session với countdown timer - tiếp tục từ trang trước
   const bookingSession = useBookingSession({
     eventId: slug,
@@ -189,6 +196,13 @@ export default function PaymentPage({ params }: { params: Promise<{ slug: string
       return;
     }
     
+    // Kiểm tra orderId đã có chưa (tạo từ Step 1)
+    if (!parsed.orderId) {
+      console.warn('⚠️ Không tìm thấy orderId, redirect về trang chọn vé');
+      router.push(`/booking/${slug}/tickets`);
+      return;
+    }
+    
     setBookingData(parsed);
     setIsLoading(false);
     
@@ -201,6 +215,10 @@ export default function PaymentPage({ params }: { params: Promise<{ slug: string
 
   // Handle VNPay callback when user returns
   const handleVNPayCallback = async () => {
+    // Xóa cờ Payment Redirect vì user đã quay về từ VNPay
+    // Nếu thanh toán thất bại, hook sẽ hoạt động bình thường để hủy đơn khi user rời đi
+    clearPaymentRedirectFlag();
+    
     const result = paymentService.parseCallbackResult(searchParams);
     
     if (result) {
@@ -249,58 +267,30 @@ export default function PaymentPage({ params }: { params: Promise<{ slug: string
     }, 0);
   };
 
+  /**
+   * HANDLE PAYMENT - SỬ DỤNG ORDER ĐÃ TẠO TỪ STEP 1
+   * Theo kiến trúc Final Architecture:
+   * - Order đã được tạo ở Step 1 (Tickets)
+   * - Ở đây chỉ cần tạo link thanh toán VNPay
+   */
   const handlePayment = async () => {
     setIsProcessing(true);
-    setStatusMessage('Đang tạo đơn hàng...');
     
     try {
-      // Use actual eventId from bookingData (UUID), not slug
-      const eventId = bookingData.eventId;
-      if (!eventId) {
-        throw new Error('Không tìm thấy thông tin sự kiện');
-      }
-
-      // 1. Create order through queue
-      const totalQuantity = getTotalQuantity();
-      const createResponse = await orderService.createOrder(eventId, totalQuantity as number);
-      
-      setOrderStatus(createResponse);
-      console.log('📦 Order response:', createResponse);
-      
-      // 2. Poll for order confirmation
-      setStatusMessage('Đang chờ xác nhận đơn hàng...');
-      let confirmed = false;
-      let attempts = 0;
-      const maxAttempts = 30; // 30 seconds max wait
-      let finalOrderId = createResponse.orderId;
-      
-      while (!confirmed && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const statusResponse = await orderService.checkOrderStatus(createResponse.requestId);
-        console.log('📊 Status check:', statusResponse);
-        
-        if (statusResponse.status === 'SUCCESS' && statusResponse.orderId) {
-          confirmed = true;
-          finalOrderId = statusResponse.orderId;
-          break;
-        } else if (statusResponse.status === 'FAILED') {
-          throw new Error(statusResponse.message || 'Đặt vé thất bại');
-        }
-        
-        attempts++;
+      // Lấy orderId đã tạo từ Step 1 (lưu trong bookingData)
+      const orderId = bookingData.orderId;
+      if (!orderId) {
+        throw new Error('Không tìm thấy mã đơn hàng. Vui lòng thử lại từ đầu.');
       }
       
-      if (!confirmed || !finalOrderId) {
-        throw new Error('Không thể xác nhận đơn hàng. Vui lòng thử lại.');
-      }
-      
-      // 3. Create VNPay payment URL
+      console.log('💳 Tạo link thanh toán cho đơn hàng:', orderId);
       setStatusMessage('Đang tạo liên kết thanh toán...');
+      
+      // Tạo VNPay payment URL
       const bankCode = paymentService.mapMethodToBankCode(selectedMethod);
       
       const paymentResponse = await paymentService.createPayment({
-        orderId: finalOrderId,
+        orderId: orderId,
         bankCode,
         language: 'vn'
       });
@@ -309,13 +299,12 @@ export default function PaymentPage({ params }: { params: Promise<{ slug: string
         throw new Error(paymentResponse.message || 'Không thể tạo liên kết thanh toán');
       }
       
-      // 4. Save booking data for later (after VNPay redirect back)
-      sessionStorage.setItem('bookingData', JSON.stringify({
-        ...bookingData,
-        orderId: finalOrderId
-      }));
+      // BẬT Cờ PAYMENT GATEWAY HANDOFF TRƯỚC KHI REDIRECT
+      // Điều này ngăn hook gửi beacon hủy đơn khi chuyển hướng đến VNPay
+      setPaymentRedirectFlag();
+      console.log('🚩 Payment redirect flag set - redirecting to VNPay...');
       
-      // 5. Redirect to VNPay
+      // Redirect to VNPay
       setStatusMessage('Đang chuyển đến cổng thanh toán...');
       paymentService.redirectToPayment(paymentResponse.paymentUrl);
       
@@ -346,8 +335,8 @@ export default function PaymentPage({ params }: { params: Promise<{ slug: string
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <button 
-              onClick={() => router.back()} 
-              className="flex items-center gap-2 text-slate-600 hover:text-violet-600"
+              onClick={() => !isProcessing && safeNavigate(`/booking/${slug}/info`)} 
+              className="flex items-center gap-2 text-slate-600 hover:text-violet-600 disabled:opacity-50"
               disabled={isProcessing}
             >
               <ChevronLeft className="w-5 h-5" />
@@ -371,7 +360,7 @@ export default function PaymentPage({ params }: { params: Promise<{ slug: string
       {/* Progress Steps */}
       <div className="bg-white border-b">
         <div className="container mx-auto">
-          <BookingSteps currentStep={4} />
+          <BookingSteps currentStep={3} />
         </div>
       </div>
 

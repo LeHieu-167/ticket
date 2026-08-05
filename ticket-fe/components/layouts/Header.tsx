@@ -15,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useBookingNavigation } from "@/components/providers/BookingNavigationContext";
 
 interface UserData {
   id: string;
@@ -30,6 +31,7 @@ interface HeaderProps {
 
 export const Header = ({ activeNav = 'home' }: HeaderProps) => {
   const router = useRouter();
+  const { safeNavigate } = useBookingNavigation();
   const [user, setUser] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -70,8 +72,7 @@ export const Header = ({ activeNav = 'home' }: HeaderProps) => {
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     setUser(null);
-    router.push('/');
-    router.refresh();
+    safeNavigate('/');
   };
 
   const getNavClass = (nav: string) => {
@@ -140,7 +141,7 @@ export const Header = ({ activeNav = 'home' }: HeaderProps) => {
                 {user.roles.includes('ROLE_ORGANIZER') && (
                   <DropdownMenuItem 
                     className="flex items-center gap-3 px-3 py-2.5 cursor-pointer rounded-lg hover:bg-violet-50 focus:bg-violet-50 mb-1"
-                    onClick={() => router.push('/organizer/dashboard')}
+                    onClick={() => safeNavigate('/organizer/dashboard')}
                   >
                     <LayoutDashboard className="w-4 h-4 text-violet-600" />
                     <span className="font-medium text-violet-700">Tổ chức của tôi</span>
@@ -150,7 +151,7 @@ export const Header = ({ activeNav = 'home' }: HeaderProps) => {
                 {user.roles.includes('ROLE_ADMIN') && (
                   <DropdownMenuItem 
                     className="flex items-center gap-3 px-3 py-2.5 cursor-pointer rounded-lg hover:bg-blue-50 focus:bg-blue-50 mb-1"
-                    onClick={() => router.push('/admin/dashboard')}
+                    onClick={() => safeNavigate('/admin/dashboard')}
                   >
                     <Settings className="w-4 h-4 text-blue-600" />
                     <span className="font-medium text-blue-700">Quản lý hệ thống</span>
@@ -159,7 +160,7 @@ export const Header = ({ activeNav = 'home' }: HeaderProps) => {
 
                 <DropdownMenuItem 
                   className="flex items-center gap-3 px-3 py-2.5 cursor-pointer rounded-lg hover:bg-slate-50 focus:bg-slate-50"
-                  onClick={() => router.push('/my-tickets')}
+                  onClick={() => safeNavigate('/my-tickets')}
                 >
                   <TicketIcon className="w-4 h-4 text-slate-500" />
                   <span className="font-medium text-slate-700">Vé của tôi</span>
@@ -167,7 +168,7 @@ export const Header = ({ activeNav = 'home' }: HeaderProps) => {
                 
                 <DropdownMenuItem 
                   className="flex items-center gap-3 px-3 py-2.5 cursor-pointer rounded-lg hover:bg-slate-50 focus:bg-slate-50"
-                  onClick={() => router.push('/profile')}
+                  onClick={() => safeNavigate('/profile')}
                 >
                   <User className="w-4 h-4 text-slate-500" />
                   <span className="font-medium text-slate-700">Tài khoản của tôi</span>

@@ -2,6 +2,7 @@ package com.ticket.repository;
 
 import com.ticket.entity.Ticket;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -106,5 +107,13 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
      */
     @Query("SELECT COUNT(t) FROM Ticket t WHERE t.ticketType.id = :ticketTypeId AND t.status NOT IN ('CANCELLED', 'REFUNDED')")
     Long countSoldByTicketTypeId(@Param("ticketTypeId") Long ticketTypeId);
+
+    /**
+     * Cập nhật hàng loạt vé ACTIVE sang EXPIRED cho sự kiện
+     * @return số vé đã cập nhật
+     */
+    @Modifying
+    @Query("UPDATE Ticket t SET t.status = com.ticket.entity.Ticket.TicketStatus.EXPIRED, t.updatedAt = CURRENT_TIMESTAMP WHERE t.event.id = :eventId AND t.status = com.ticket.entity.Ticket.TicketStatus.ACTIVE")
+    int updateActiveToExpiredByEventId(@Param("eventId") UUID eventId);
 }
 

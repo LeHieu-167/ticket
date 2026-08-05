@@ -28,6 +28,7 @@ export interface EventRequest {
   organizerName?: string;
   bannerImageUrl?: string;
   thumbnailUrl?: string;
+  mapImageUrl?: string; // URL ảnh sơ đồ/map địa điểm
   termsAndConditions?: string;
   ticketTypes?: TicketTypeRequest[];
 }
@@ -47,10 +48,13 @@ export interface EventResponse {
   ticketPrice: number;
   availableTickets: number;
   totalTickets?: number;
+  ticketsSold?: number;      // Số vé đã bán (từ backend)
+  totalRevenue?: number;     // Tổng doanh thu (từ backend)
   organizerId: string;
   organizerName?: string;
   bannerImageUrl?: string;
   thumbnailUrl?: string;
+  mapImageUrl?: string; // URL ảnh sơ đồ/map địa điểm
   termsAndConditions?: string;
   isActive: boolean;
   status: EventStatus; // Trạng thái sự kiện
@@ -61,6 +65,27 @@ export interface EventResponse {
   // Thêm các field mới cho chi tiết sự kiện
   category?: string;
   artists?: ArtistInfo[];
+  ticketTypes?: TicketTypeResponse[]; // Danh sách loại vé
+}
+
+/**
+ * Response loại vé từ API
+ */
+export interface TicketTypeResponse {
+  id: string;
+  name: string;
+  price: number;
+  totalQuantity: number;
+  availableQuantity: number;
+  soldQuantity: number;  // Số vé đã bán (từ backend)
+  revenue: number;       // Doanh thu = soldQuantity * price (từ backend)
+  zoneName?: string;
+  description?: string;
+  seatingType?: string;
+  displayOrder?: number;
+  allowSeatSelection?: boolean;
+  colorCode?: string;
+  isActive?: boolean;
 }
 
 /**

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import ticketService, { TicketResponse, OrderWithTicketsResponse } from "@/apis/ticket.service";
 import TicketCarousel from "@/components/tickets/TicketCarousel";
+import { clearCurrentOrderId } from "@/hooks/use-auto-cancel-order";
 
 // --- UTILS ---
 
@@ -90,6 +91,11 @@ export default function ConfirmationPage({ params }: { params: Promise<{ slug: s
 
   useEffect(() => {
     setIsClient(true);
+    
+    // Xóa orderId khỏi sessionStorage vì đã thanh toán thành công
+    // Điều này ngăn auto-cancel kích hoạt nhầm
+    clearCurrentOrderId();
+    console.log('🎉 Thanh toán thành công - đã xóa orderId khỏi auto-cancel');
   }, []);
 
   useEffect(() => {

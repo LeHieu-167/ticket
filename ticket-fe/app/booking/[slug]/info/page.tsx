@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useBookingSession } from "@/hooks/use-booking-session";
 import { BookingCountdown } from "@/components/ui/booking-countdown";
+import { useAutoCancelOrder } from "@/hooks/use-auto-cancel-order";
+import { useBookingNavigation } from "@/components/providers/BookingNavigationContext";
 
 // --- UTILS ---
 
@@ -26,10 +28,9 @@ const formatCurrency = (amount: number) => {
 const BookingSteps = ({ currentStep }: { currentStep: number }) => {
   const steps = [
     { id: 1, name: 'Chọn vé' },
-    { id: 2, name: 'Chọn ghế' },
-    { id: 3, name: 'Thông tin' },
-    { id: 4, name: 'Thanh toán' },
-    { id: 5, name: 'Hoàn tất' },
+    { id: 2, name: 'Thông tin' },
+    { id: 3, name: 'Thanh toán' },
+    { id: 4, name: 'Hoàn tất' },
   ];
 
   return (
@@ -114,6 +115,12 @@ export default function BuyerInfoPage({ params }: { params: Promise<{ slug: stri
     note: ''
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  // Hook tự động hủy đơn hàng khi rời khỏi luồng đặt vé (beforeunload, pagehide)
+  useAutoCancelOrder();
+  
+  // Hook để navigate an toàn với popup xác nhận
+  const { safeNavigate } = useBookingNavigation();
 
   // Booking session với countdown timer - tiếp tục từ trang trước
   const bookingSession = useBookingSession({
@@ -229,7 +236,7 @@ export default function BuyerInfoPage({ params }: { params: Promise<{ slug: stri
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <button 
-              onClick={() => router.back()} 
+              onClick={() => safeNavigate(`/booking/${slug}/tickets`)} 
               className="flex items-center gap-2 text-slate-600 hover:text-violet-600"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -253,7 +260,7 @@ export default function BuyerInfoPage({ params }: { params: Promise<{ slug: stri
       {/* Progress Steps */}
       <div className="bg-white border-b">
         <div className="container mx-auto">
-          <BookingSteps currentStep={3} />
+          <BookingSteps currentStep={2} />
         </div>
       </div>
 
@@ -403,7 +410,7 @@ export default function BuyerInfoPage({ params }: { params: Promise<{ slug: stri
           <div className="flex items-center gap-3 flex-1 sm:flex-none">
             <Button 
               variant="outline" 
-              onClick={() => router.back()}
+              onClick={() => safeNavigate(`/booking/${slug}/tickets`)}
               className="flex-1 sm:flex-none"
             >
               <ChevronLeft className="w-4 h-4 mr-2" />

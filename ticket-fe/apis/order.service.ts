@@ -335,6 +335,78 @@ export const orderService = {
     const response = await api.get<OrderResponse>(`/api/orders/${id}`);
     return response.data;
   },
+
+  // ==================== INIT ORDER (Early Creation) ====================
+
+  /**
+   * Khởi tạo đơn hàng sớm (khi người dùng chọn xong vé và bấm "Tiếp tục")
+   * Đơn hàng sẽ được tạo với trạng thái CONFIRMED, PaymentStatus PENDING
+   * Vé sẽ bị trừ ngay khỏi tồn kho để đảm bảo không bị oversell
+   * 
+   * @param eventId ID sự kiện (UUID)
+   * @param ticketQuantity Số lượng vé
+   * @returns InitOrderResponse với orderId và expiredAt
+   */
+  async initOrder(eventId: string, ticketQuantity: number): Promise<{
+    orderId: string;
+    expiredAt: string;
+    requestId: string;
+  }> {
+    console.log('🚀 Init Order - eventId:', eventId, 'quantity:', ticketQuantity);
+    
+    // Sử dụng createOrder hiện tại và đợi kết quả
+    const createResponse = await this.createOrder(eventId, ticketQuantity);
+    
+    // Poll for order confirmation (tối đa 30 giây)
+    let confirmed = false;
+    let attempts = 0;
+    const maxAttempts = 30;
+    let finalOrderId = createResponse.orderId;
+    
+    while (!confirmed && attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const statusResponse = await this.checkOrderStatus(createResponse.requestId);
+      console.log('📊 Init Order status check:', statusResponse);
+      
+      if (statusResponse.status === 'SUCCESS' && statusResponse.orderId) {
+        confirmed = true;
+        finalOrderId = statusResponse.orderId;
+        break;
+      } else if (statusResponse.status === 'FAILED') {
+        throw new Error(statusResponse.message || 'Đặt vé thất bại');
+      }
+      
+      attempts++;
+    }
+    
+    if (!confirmed || !finalOrderId) {
+      throw new Error('Không thể xác nhận đơn hàng. Vui lòng thử lại.');
+    }
+    
+    return {
+      orderId: finalOrderId,
+      expiredAt: createResponse.expiredAt || new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      requestId: createResponse.requestId,
+    };
+  },
+
+  /**
+   * Hủy đơn hàng (dùng cho clean-up logic và cancel thủ công)
+   * 
+   * @param orderId ID đơn hàng cần hủy
+   */
+  async cancelOrder(orderId: string): Promise<void> {
+    console.log('🗑️ Cancel Order:', orderId);
+    
+    try {
+      // Gọi API hủy đơn hàng thông thường (cần auth)
+      await api.delete(`/api/orders/${orderId}/cancel`);
+    } catch (error: any) {
+      // Silent fail nếu đơn đã bị hủy hoặc không tìm thấy
+      console.warn('Cancel order failed (may already be cancelled):', error?.message);
+    }
+  },
 };
 
 export default orderService;
