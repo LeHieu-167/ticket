@@ -13,13 +13,14 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NotificationMessage {
-    private String type; // ORDER, PAYMENT, EVENT, SYSTEM
+    private String type;
     private String title;
     private String message;
-    private Object data; // Additional data (orderId, eventId, etc.)
+    private Object data;
     private LocalDateTime timestamp;
-    private String severity; // INFO, SUCCESS, WARNING, ERROR
+    private String severity;
 
+    public static NotificationMessage orderProcessed(UUID orderId, String status, String message) {
     public static NotificationMessage orderProcessed(UUID orderId, String status, String message) {
         NotificationMessage notification = new NotificationMessage();
         notification.setType("ORDER");
@@ -32,6 +33,7 @@ public class NotificationMessage {
     }
 
     public static NotificationMessage paymentCompleted(UUID orderId, boolean success, String message) {
+    public static NotificationMessage paymentCompleted(UUID orderId, boolean success, String message) {
         NotificationMessage notification = new NotificationMessage();
         notification.setType("PAYMENT");
         notification.setTitle(success ? "Thanh toán thành công" : "Thanh toán thất bại");
@@ -42,6 +44,7 @@ public class NotificationMessage {
         return notification;
     }
 
+    public static NotificationMessage eventUpdate(UUID eventId, String title, String message) {
     public static NotificationMessage eventUpdate(UUID eventId, String title, String message) {
         NotificationMessage notification = new NotificationMessage();
         notification.setType("EVENT");

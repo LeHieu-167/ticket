@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 import java.util.UUID;
+import java.util.UUID;
 
 /**
  * DTO cho yêu cầu đặt vé
@@ -29,6 +30,7 @@ public class OrderRequest implements Serializable {
     
     @NotNull(message = "ID sự kiện không được để trống")
     private UUID eventId;
+    private UUID eventId;
 
     @NotNull(message = "Số lượng vé không được để trống")
     @Min(value = 1, message = "Số lượng vé phải ít nhất là 1")
@@ -37,4 +39,3 @@ public class OrderRequest implements Serializable {
     // customerId sẽ được lấy từ JWT token, không cần client gửi
     private UUID customerId; // Will be set by the system from JWT token
 }
-

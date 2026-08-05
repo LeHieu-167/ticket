@@ -11,6 +11,8 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+import java.util.UUID;
+
 /**
  * DTO cho yêu cầu tạo/cập nhật loại vé
  * 
@@ -40,12 +42,6 @@ public class TicketTypeRequest {
     @Min(value = 1, message = "Số lượng vé phải ít nhất là 1")
     private Integer totalQuantity;
 
-    // ==================== SEATING CONFIGURATION ====================
-
-    /**
-     * Loại chỗ ngồi: ZONE_ONLY, ZONE_WITH_ROW, FULL_SEAT
-     * Mặc định: ZONE_ONLY
-     */
     private String seatingType;
 
     /**
@@ -54,40 +50,10 @@ public class TicketTypeRequest {
      */
     private String zoneName;
 
-    /**
-     * Mô tả khu vực (tùy chọn)
-     * Ví dụ: "Gần sân khấu, có ghế ngồi", "Khu vực đứng tự do"
-     */
     private String zoneDescription;
-
-    /**
-     * Danh sách hàng (chỉ dùng khi seatingType = ZONE_WITH_ROW hoặc FULL_SEAT)
-     * Format: comma-separated "A,B,C,D,E" hoặc "1,2,3,4,5"
-     */
     private String rowLabels;
-
-    /**
-     * Số ghế mỗi hàng (chỉ dùng khi seatingType = FULL_SEAT)
-     */
     private Integer seatsPerRow;
-
-    /**
-     * Cho phép người dùng chọn ghế hay hệ thống tự động gán
-     * true = user chọn ghế trên sơ đồ
-     * false = hệ thống tự động gán ghế theo thứ tự
-     */
     private Boolean allowSeatSelection;
-
-    // ==================== DISPLAY CONFIGURATION ====================
-
-    /**
-     * Màu hiển thị trên UI
-     */
     private String colorCode;
-
-    /**
-     * Thứ tự hiển thị trong danh sách
-     */
     private Integer displayOrder;
 }
-

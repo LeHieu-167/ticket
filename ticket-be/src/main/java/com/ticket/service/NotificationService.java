@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -32,19 +34,17 @@ public class NotificationService {
                     userId, notification.getType(), notification.getTitle());
         } catch (Exception e) {
             log.error("Lỗi gửi notification tới user {}: {}", userId, e.getMessage());
+            log.error("Lỗi gửi notification tới user {}: {}", userId, e.getMessage());
         }
     }
 
-    /**
-     * Broadcast notification tới tất cả users
-     * @param notification Thông báo cần gửi
-     */
     public void broadcastToAll(NotificationMessage notification) {
         try {
             messagingTemplate.convertAndSend("/topic/notifications", notification);
             log.info("Đã broadcast notification - Type: {}, Title: {}", 
                     notification.getType(), notification.getTitle());
         } catch (Exception e) {
+            log.error("Lỗi broadcast notification: {}", e.getMessage());
             log.error("Lỗi broadcast notification: {}", e.getMessage());
         }
     }
@@ -77,12 +77,8 @@ public class NotificationService {
         broadcastToAll(notification);
     }
 
-    /**
-     * Gửi system message
-     */
     public void sendSystemMessage(String title, String message, String severity) {
         NotificationMessage notification = NotificationMessage.systemMessage(title, message, severity);
         broadcastToAll(notification);
     }
 }
-

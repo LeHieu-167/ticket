@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api")
@@ -23,24 +24,17 @@ public class EventController {
     
     private final EventService eventService;
 
-    /**
-     * API cho Organizer tạo sự kiện mới
-     * POST /api/events
-     * Logic quan trọng: Lấy ID của organizer từ JWT token
-     */
     @PostMapping("/events")
     @PreAuthorize("hasRole('ORGANIZER')")
     public ResponseEntity<?> createEvent(
             @Valid @RequestBody EventRequest request,
             Authentication authentication) {
         try {
-            // Lấy ID của user hiện tại từ JWT token
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
             UUID currentUserId = userDetails.getId();
             
             // Tạo sự kiện với organizerId = currentUserId, status = PENDING_APPROVAL
             EventResponse event = eventService.createEvent(request, currentUserId);
-            
             return ResponseEntity.status(HttpStatus.CREATED).body(event);
         } catch (Exception e) {
             return ResponseEntity.badRequest()
@@ -154,13 +148,11 @@ public class EventController {
     @GetMapping("/organizer/my-events")
     @PreAuthorize("hasRole('ORGANIZER')")
     public ResponseEntity<List<EventResponse>> getMyEvents(Authentication authentication) {
-        // Lấy ID của user hiện tại từ JWT token
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         UUID currentUserId = userDetails.getId();
         
         // Lọc sự kiện theo organizer_id
         List<EventResponse> events = eventService.getMyEvents(currentUserId);
-        
         return ResponseEntity.ok(events);
     }
 
@@ -191,6 +183,7 @@ public class EventController {
      * GET /api/events/{id}
      */
     @GetMapping("/events/{id}")
+    public ResponseEntity<?> getEventById(@PathVariable UUID id) {
     public ResponseEntity<?> getEventById(@PathVariable UUID id) {
         try {
             EventResponse event = eventService.getEventById(id);

@@ -2,6 +2,7 @@ package com.ticket.controller;
 
 import com.ticket.dto.*;
 import com.ticket.security.UserDetailsImpl;
+import com.ticket.security.UserDetailsImpl;
 import com.ticket.service.QRCodeService;
 import com.ticket.service.TicketService;
 import jakarta.validation.Valid;
@@ -13,15 +14,12 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.UUID;
 
-/**
- * Controller quản lý vé điện tử
- */
 @RestController
 @RequestMapping("/api/tickets")
 @RequiredArgsConstructor
@@ -58,30 +56,20 @@ public class TicketController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    /**
-     * Lấy danh sách loại vé của sự kiện
-     */
     @GetMapping("/types/event/{eventId}")
+    public ResponseEntity<List<TicketTypeResponse>> getTicketTypesByEvent(@PathVariable UUID eventId) {
     public ResponseEntity<List<TicketTypeResponse>> getTicketTypesByEvent(@PathVariable UUID eventId) {
         List<TicketTypeResponse> ticketTypes = ticketService.getTicketTypesByEvent(eventId);
         return ResponseEntity.ok(ticketTypes);
     }
 
-    /**
-     * Lấy danh sách loại vé còn khả dụng của sự kiện
-     */
     @GetMapping("/types/event/{eventId}/available")
+    public ResponseEntity<List<TicketTypeResponse>> getAvailableTicketTypes(@PathVariable UUID eventId) {
     public ResponseEntity<List<TicketTypeResponse>> getAvailableTicketTypes(@PathVariable UUID eventId) {
         List<TicketTypeResponse> ticketTypes = ticketService.getAvailableTicketTypes(eventId);
         return ResponseEntity.ok(ticketTypes);
     }
 
-    // ==================== TICKET ENDPOINTS ====================
-
-    /**
-     * Tạo vé cho đơn hàng đã thanh toán
-     * Chỉ ADMIN hoặc hệ thống gọi (sau khi thanh toán thành công)
-     */
     @PostMapping("/generate/{orderId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<TicketResponse>> generateTickets(@PathVariable UUID orderId) {
@@ -90,36 +78,26 @@ public class TicketController {
         return ResponseEntity.status(HttpStatus.CREATED).body(tickets);
     }
 
-    /**
-     * Lấy thông tin vé theo ID
-     */
     @GetMapping("/{ticketId}")
+    public ResponseEntity<TicketResponse> getTicketById(@PathVariable UUID ticketId) {
     public ResponseEntity<TicketResponse> getTicketById(@PathVariable UUID ticketId) {
         TicketResponse ticket = ticketService.getTicketById(ticketId);
         return ResponseEntity.ok(ticket);
     }
 
-    /**
-     * Lấy thông tin vé theo mã vé
-     */
     @GetMapping("/code/{ticketCode}")
     public ResponseEntity<TicketResponse> getTicketByCode(@PathVariable String ticketCode) {
         TicketResponse ticket = ticketService.getTicketByCode(ticketCode);
         return ResponseEntity.ok(ticket);
     }
 
-    /**
-     * Lấy danh sách vé của đơn hàng
-     */
     @GetMapping("/order/{orderId}")
+    public ResponseEntity<List<TicketResponse>> getTicketsByOrder(@PathVariable UUID orderId) {
     public ResponseEntity<List<TicketResponse>> getTicketsByOrder(@PathVariable UUID orderId) {
         List<TicketResponse> tickets = ticketService.getTicketsByOrder(orderId);
         return ResponseEntity.ok(tickets);
     }
 
-    /**
-     * Lấy danh sách vé của người dùng hiện tại
-     */
     @GetMapping("/my-tickets")
     @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<List<TicketResponse>> getMyTickets(@AuthenticationPrincipal UserDetails userDetails) {
@@ -173,7 +151,7 @@ public class TicketController {
      */
     @GetMapping("/verify/{ticketCode}")
     public ResponseEntity<TicketResponse> verifyTicket(@PathVariable String ticketCode) {
-        log.info("🔍 Verify vé: {}", ticketCode);
+        log.info("Verify vé: {}", ticketCode);
         TicketResponse ticket = ticketService.verifyTicket(ticketCode);
         return ResponseEntity.ok(ticket);
     }
@@ -212,10 +190,9 @@ public class TicketController {
      */
     @GetMapping("/qr/{ticketCode}")
     public ResponseEntity<byte[]> getTicketQRCode(@PathVariable String ticketCode) {
-        log.info("📱 Lấy QR Code cho vé: {}", ticketCode);
+        log.info("Lấy QR Code cho vé: {}", ticketCode);
         TicketResponse ticket = ticketService.getTicketByCode(ticketCode);
         
-        // Tạo QR từ ticket data
         String qrContent = qrCodeService.buildTicketQRContent(
                 ticket.getTicketCode(), 
                 ticket.getEventId(), 
@@ -230,28 +207,18 @@ public class TicketController {
         return new ResponseEntity<>(qrImage, headers, HttpStatus.OK);
     }
 
-    // ==================== CANCELLATION ENDPOINTS ====================
-
-    /**
-     * Hủy vé
-     * Chỉ ADMIN mới có quyền
-     */
     @PostMapping("/{ticketId}/cancel")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<TicketResponse> cancelTicket(
             @PathVariable UUID ticketId,
+            @PathVariable UUID ticketId,
             @RequestParam(required = false, defaultValue = "Yêu cầu hủy từ admin") String reason) {
+        log.info("Hủy vé {} với lý do: {}", ticketId, reason);
         log.info("Hủy vé {} với lý do: {}", ticketId, reason);
         TicketResponse ticket = ticketService.cancelTicket(ticketId, reason);
         return ResponseEntity.ok(ticket);
     }
 
-    // ==================== STATISTICS ENDPOINTS ====================
-
-    /**
-     * Thống kê vé của sự kiện
-     * Chỉ ADMIN hoặc ORGANIZER mới có quyền
-     */
     @GetMapping("/statistics/event/{eventId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'ORGANIZER')")
     public ResponseEntity<TicketService.TicketStatistics> getEventStatistics(@PathVariable UUID eventId) {
@@ -260,4 +227,3 @@ public class TicketController {
         return ResponseEntity.ok(statistics);
     }
 }
-

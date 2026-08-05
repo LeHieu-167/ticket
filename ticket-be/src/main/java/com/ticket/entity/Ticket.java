@@ -32,7 +32,6 @@ public class Ticket {
 
     /**
      * Mã vé duy nhất - dùng để tạo QR Code
-     * Format: EVENT{eventId}_ORDER{orderId}_{timestamp}_{sequence}
      */
     @Column(name = "ticket_code", nullable = false, unique = true, length = 100)
     private String ticketCode;
@@ -64,29 +63,20 @@ public class Ticket {
     @JoinColumn(name = "ticket_type_id", nullable = false)
     private TicketType ticketType;
 
-    // ==================== SEAT INFORMATION ====================
-    // Các trường này có thể null tùy thuộc vào SeatingType của TicketType
-    // - ZONE_ONLY: chỉ có zoneName
-    // - ZONE_WITH_ROW: có zoneName + rowName
-    // - FULL_SEAT: có zoneName + rowName + seatNumber
-
     /**
      * Tên khu vực (luôn có giá trị)
-     * Ví dụ: "VIP Zone", "General Admission", "Khu A"
      */
     @Column(name = "zone_name", length = 100)
     private String zoneName;
 
     /**
      * Tên hàng (chỉ có khi SeatingType = ZONE_WITH_ROW hoặc FULL_SEAT)
-     * Ví dụ: "A", "B", "1", "2"
      */
     @Column(name = "row_name", length = 20)
     private String rowName;
 
     /**
      * Số ghế (chỉ có khi SeatingType = FULL_SEAT)
-     * Ví dụ: "1", "2", "15"
      */
     @Column(name = "seat_number", length = 20)
     private String seatNumber;
@@ -166,4 +156,3 @@ public class Ticket {
         REFUNDED      // Đã hoàn tiền
     }
 }
-

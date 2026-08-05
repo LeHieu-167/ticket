@@ -6,6 +6,8 @@ import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
+import java.util.UUID;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -14,4 +16,3 @@ public class PaymentRequest {
     private String bankCode; // VNPAYQR, VNBANK, INTCARD, etc.
     private String language; // vn, en
 }
-

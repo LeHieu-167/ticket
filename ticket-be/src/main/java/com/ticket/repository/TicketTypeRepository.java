@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.UUID;
 
 @Repository
 public interface TicketTypeRepository extends JpaRepository<TicketType, Long> {
@@ -28,22 +29,16 @@ public interface TicketTypeRepository extends JpaRepository<TicketType, Long> {
      */
     Optional<TicketType> findByEventIdAndName(UUID eventId, String name);
 
-    /**
-     * Tìm loại vé còn vé khả dụng
-     */
     @Query("SELECT tt FROM TicketType tt WHERE tt.event.id = :eventId AND tt.isActive = true AND tt.availableQuantity > 0 ORDER BY tt.displayOrder")
     List<TicketType> findAvailableByEventId(@Param("eventId") UUID eventId);
+    List<TicketType> findAvailableByEventId(@Param("eventId") UUID eventId);
 
-    /**
-     * Tính tổng số vé còn lại của một sự kiện
-     */
     @Query("SELECT COALESCE(SUM(tt.availableQuantity), 0) FROM TicketType tt WHERE tt.event.id = :eventId AND tt.isActive = true")
     Integer sumAvailableQuantityByEventId(@Param("eventId") UUID eventId);
+    Integer sumAvailableQuantityByEventId(@Param("eventId") UUID eventId);
 
-    /**
-     * Tính tổng số vé ban đầu của một sự kiện
-     */
     @Query("SELECT COALESCE(SUM(tt.totalQuantity), 0) FROM TicketType tt WHERE tt.event.id = :eventId")
+    Integer sumTotalQuantityByEventId(@Param("eventId") UUID eventId);
     Integer sumTotalQuantityByEventId(@Param("eventId") UUID eventId);
 
     /**
@@ -51,4 +46,3 @@ public interface TicketTypeRepository extends JpaRepository<TicketType, Long> {
      */
     boolean existsByIdAndEventId(Long id, UUID eventId);
 }
-

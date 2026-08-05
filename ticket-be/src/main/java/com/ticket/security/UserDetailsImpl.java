@@ -76,4 +76,3 @@ public class UserDetailsImpl implements UserDetails {
         return isActive;
     }
 }
-
