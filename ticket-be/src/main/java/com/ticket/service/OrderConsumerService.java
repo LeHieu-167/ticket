@@ -37,9 +37,7 @@ public class OrderConsumerService {
     private final NotificationService notificationService;
     private final OrderQueueService orderQueueService;
 
-    // Thời gian chờ để lấy lock (10 giây)
     private static final long LOCK_WAIT_TIME = 10L;
-    // Thời gian giữ lock tối đa (30 giây)
     private static final long LOCK_LEASE_TIME = 30L;
     // Booking Session Timeout: 15 phút để thanh toán
     private static final long BOOKING_TIMEOUT_MINUTES = OrderQueueService.BOOKING_SESSION_TIMEOUT_MINUTES;
@@ -84,22 +82,20 @@ public class OrderConsumerService {
         // ==================== RESUMABLE QUEUE: Đánh dấu PROCESSING ====================
         orderQueueService.markAsProcessing(requestId);
 
-        // Tạo lock key cho sự kiện cụ thể
-        String lockKey = "event:lock:" + orderRequest.getEventId();
+        String lockKey = "event:lock:" + orderRequest.getEventId().toString();
         RLock lock = redissonClient.getLock(lockKey);
 
         try {
-            // Cố gắng lấy lock
             boolean isLocked = lock.tryLock(LOCK_WAIT_TIME, LOCK_LEASE_TIME, TimeUnit.SECONDS);
 
             if (isLocked) {
                 log.info("Đã giữ lock cho Event ID: {}", orderRequest.getEventId());
+                log.info("Đã giữ lock cho Event ID: {}", orderRequest.getEventId());
                 try {
-                    // Xử lý đơn hàng (trong transaction)
                     processOrder(orderRequest);
                 } finally {
-                    // LUÔN LUÔN nhả lock sau khi xử lý xong
                     lock.unlock();
+                    log.info("Đã nhả lock cho Event ID: {}", orderRequest.getEventId());
                     log.info("Đã nhả lock cho Event ID: {}", orderRequest.getEventId());
                 }
             } else {
@@ -112,8 +108,10 @@ public class OrderConsumerService {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.error("Thread bị interrupt khi chờ lock cho Event ID: {}", orderRequest.getEventId());
+            log.error("Thread bị interrupt khi chờ lock cho Event ID: {}", orderRequest.getEventId());
             createFailedOrder(orderRequest, "Lỗi hệ thống: Thread interrupted");
         } catch (Exception e) {
+            log.error("Lỗi không mong đợi khi xử lý đơn hàng: {}", e.getMessage(), e);
             log.error("Lỗi không mong đợi khi xử lý đơn hàng: {}", e.getMessage(), e);
             createFailedOrder(orderRequest, "Lỗi hệ thống: " + e.getMessage());
         }
@@ -135,32 +133,32 @@ public class OrderConsumerService {
         log.info("Bắt đầu xử lý đơn hàng - RequestID: {}, Event: {}, Customer: {}, Quantity: {}",
                 requestId, eventId, customerId, requestedQuantity);
 
-        // 1. Kiểm tra sự kiện có tồn tại không
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Sự kiện không tồn tại với ID: " + eventId));
 
-        // 2. Kiểm tra sự kiện có đang hoạt động không
         if (!event.isActive()) {
+            log.warn("Sự kiện ID: {} không còn hoạt động", eventId);
             log.warn("Sự kiện ID: {} không còn hoạt động", eventId);
             createFailedOrder(orderRequest, "Sự kiện không còn hoạt động");
             return;
         }
 
-        // 3. Kiểm tra tồn kho
         Integer availableTickets = event.getAvailableTickets();
+        log.info("Số vé hiện tại: {}, Số vé yêu cầu: {}", availableTickets, requestedQuantity);
         log.info("Số vé hiện tại: {}, Số vé yêu cầu: {}", availableTickets, requestedQuantity);
 
         if (availableTickets < requestedQuantity) {
+            log.warn("Không đủ vé - Còn: {}, Yêu cầu: {}", availableTickets, requestedQuantity);
             log.warn("Không đủ vé - Còn: {}, Yêu cầu: {}", availableTickets, requestedQuantity);
             createFailedOrder(orderRequest, "Không đủ vé. Chỉ còn " + availableTickets + " vé.");
             return;
         }
 
-        // 4. Trừ tồn kho (CRITICAL SECTION - Được bảo vệ bởi Redis Lock)
         Integer newAvailableTickets = availableTickets - requestedQuantity;
         event.setAvailableTickets(newAvailableTickets);
         eventRepository.save(event);
 
+        log.info("Đã trừ tồn kho - Còn lại: {} vé", newAvailableTickets);
         log.info("Đã trừ tồn kho - Còn lại: {} vé", newAvailableTickets);
 
         // 5. Tạo đơn hàng thành công với Booking Session Timeout
@@ -194,6 +192,7 @@ public class OrderConsumerService {
             notificationService.notifyOrderProcessed(customerId, order.getId(), "CONFIRMED", successMessage);
         } catch (Exception e) {
             log.error("Lỗi gửi notification: {}", e.getMessage());
+            log.error("Lỗi gửi notification: {}", e.getMessage());
         }
     }
 
@@ -207,7 +206,7 @@ public class OrderConsumerService {
             order.setCustomerId(orderRequest.getCustomerId());
             order.setEventId(orderRequest.getEventId());
             order.setTicketQuantity(orderRequest.getTicketQuantity());
-            order.setTotalPrice(BigDecimal.ZERO); // Chưa tính được giá
+            order.setTotalPrice(BigDecimal.ZERO);
             order.setStatus(Order.OrderStatus.PENDING);
             orderRepository.save(order);
             
@@ -215,6 +214,7 @@ public class OrderConsumerService {
             
             // Giữ nguyên status PROCESSING trong Redis vì đang chờ retry
         } catch (Exception e) {
+            log.error("Lỗi khi tạo đơn hàng PENDING: {}", e.getMessage());
             log.error("Lỗi khi tạo đơn hàng PENDING: {}", e.getMessage());
         }
     }
@@ -252,6 +252,7 @@ public class OrderConsumerService {
                 );
             } catch (Exception e) {
                 log.error("Lỗi gửi notification: {}", e.getMessage());
+                log.error("Lỗi gửi notification: {}", e.getMessage());
             }
         } catch (Exception e) {
             log.error("Lỗi khi tạo đơn hàng FAILED: {}", e.getMessage());
@@ -261,4 +262,3 @@ public class OrderConsumerService {
         }
     }
 }
-

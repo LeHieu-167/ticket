@@ -10,10 +10,8 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.UUID;
 
-/**
- * DTO trả về thông tin vé điện tử đầy đủ
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -21,9 +19,8 @@ import java.util.UUID;
 public class TicketResponse {
 
     private UUID id;
+    private UUID id;
     private String ticketCode;
-    
-    // QR Code
     private String qrCodeBase64;
     private String qrCodeDataUri;
     
@@ -40,35 +37,21 @@ public class TicketResponse {
     private LocalDateTime eventEndDate;
     private String eventBannerUrl;
     private String organizerName;
-    
-    // Thông tin loại vé
     private Long ticketTypeId;
     private String ticketTypeName;
     private BigDecimal ticketPrice;
-    private String seatingType; // ZONE_ONLY, ZONE_WITH_ROW, FULL_SEAT
-    
-    // Thông tin vị trí (linh hoạt theo seatingType)
-    private String zoneName;        // Luôn có: "VIP Zone", "General Admission"
-    private String rowName;         // Có khi ZONE_WITH_ROW hoặc FULL_SEAT: "A", "B"
-    private String seatNumber;      // Chỉ có khi FULL_SEAT: "15"
-    private String locationDisplay; // Chuỗi hiển thị tổng hợp
-    
-    // Số thứ tự
+    private String seatingType;
+    private String zoneName;
+    private String rowName;
+    private String seatNumber;
+    private String locationDisplay;
     private Integer sequenceNumber;
-    
-    // Thông tin người sở hữu
     private String holderName;
     private String holderEmail;
     private String holderPhone;
-    
-    // Trạng thái
     private String status;
     private LocalDateTime checkedInAt;
-    
-    // Điều khoản
     private String termsAndConditions;
-    
-    // Timestamps
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -98,7 +81,6 @@ public class TicketResponse {
                 .createdAt(ticket.getCreatedAt())
                 .updatedAt(ticket.getUpdatedAt());
 
-        // Thông tin sự kiện
         if (ticket.getEvent() != null) {
             builder.eventId(ticket.getEvent().getId())
                     .eventName(ticket.getEvent().getName())
@@ -111,7 +93,6 @@ public class TicketResponse {
                     .termsAndConditions(ticket.getEvent().getTermsAndConditions());
         }
 
-        // Thông tin loại vé và seating type
         TicketType.SeatingType seatingType = null;
         if (ticket.getTicketType() != null) {
             seatingType = ticket.getTicketType().getSeatingType();
@@ -121,44 +102,23 @@ public class TicketResponse {
                     .seatingType(seatingType != null ? seatingType.name() : null);
         }
 
-        // Thông tin vị trí
         builder.zoneName(ticket.getZoneName())
                 .rowName(ticket.getRowName())
                 .seatNumber(ticket.getSeatNumber());
 
-        // Tạo chuỗi hiển thị vị trí dựa trên seatingType
-        String locationDisplay = buildLocationDisplay(
-                seatingType,
-                ticket.getZoneName(),
-                ticket.getRowName(),
-                ticket.getSeatNumber()
-        );
+        String locationDisplay = buildLocationDisplay(seatingType, ticket.getZoneName(), ticket.getRowName(), ticket.getSeatNumber());
         builder.locationDisplay(locationDisplay);
 
         return builder.build();
     }
 
-    /**
-     * Tạo chuỗi hiển thị vị trí dựa trên loại chỗ ngồi
-     * 
-     * - ZONE_ONLY: "Khu vực: VIP Zone"
-     * - ZONE_WITH_ROW: "Khu vực: VIP Zone | Hàng: A"
-     * - FULL_SEAT: "Khu vực: VIP Zone | Hàng: A | Ghế: 15"
-     */
-    private static String buildLocationDisplay(
-            TicketType.SeatingType seatingType,
-            String zoneName,
-            String rowName,
-            String seatNumber) {
-        
+    private static String buildLocationDisplay(TicketType.SeatingType seatingType, String zoneName, String rowName, String seatNumber) {
         StringBuilder sb = new StringBuilder();
         
-        // Zone luôn hiển thị (nếu có)
         if (zoneName != null && !zoneName.isEmpty()) {
             sb.append("Khu vực: ").append(zoneName);
         }
         
-        // Row chỉ hiển thị khi seatingType cho phép
         if (seatingType != null && seatingType != TicketType.SeatingType.ZONE_ONLY) {
             if (rowName != null && !rowName.isEmpty()) {
                 if (sb.length() > 0) sb.append(" | ");
@@ -166,7 +126,6 @@ public class TicketResponse {
             }
         }
         
-        // Seat chỉ hiển thị khi FULL_SEAT
         if (seatingType == TicketType.SeatingType.FULL_SEAT) {
             if (seatNumber != null && !seatNumber.isEmpty()) {
                 if (sb.length() > 0) sb.append(" | ");
@@ -177,4 +136,3 @@ public class TicketResponse {
         return sb.length() > 0 ? sb.toString() : null;
     }
 }
-

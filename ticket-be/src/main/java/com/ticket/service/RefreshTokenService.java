@@ -9,10 +9,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Service quản lý Refresh Token trong Redis
- * Lưu trữ mapping: refresh_token -> user_id
- */
 @Service
 public class RefreshTokenService {
 
@@ -33,19 +29,13 @@ public class RefreshTokenService {
     public String createRefreshToken(UUID userId) {
         // Tạo refresh token là UUID ngẫu nhiên
         String refreshToken = UUID.randomUUID().toString();
-        
         long ttlInSeconds = refreshTokenExpirationMs / 1000;
         
-        // 1. Lưu token → userId mapping
         String tokenKey = REFRESH_TOKEN_KEY_PREFIX + refreshToken;
         redisTemplate.opsForValue().set(tokenKey, userId.toString(), ttlInSeconds, TimeUnit.SECONDS);
         
-        // 2. Thêm token vào Set của user (Reverse Index)
-        // ✅ O(1) operation - Không cần scan!
-        String userTokensKey = USER_TOKENS_KEY_PREFIX + userId;
+        String userTokensKey = USER_TOKENS_KEY_PREFIX + userId.toString();
         redisTemplate.opsForSet().add(userTokensKey, refreshToken);
-        
-        // 3. Set TTL cho Set (tự động clean up)
         redisTemplate.expire(userTokensKey, ttlInSeconds, TimeUnit.SECONDS);
         
         return refreshToken;
@@ -62,15 +52,11 @@ public class RefreshTokenService {
         
         if (userId != null) {
             return UUID.fromString(userId);
+            return UUID.fromString(userId);
         }
-        
         return null;
     }
 
-    /**
-     * Xóa refresh token (dùng khi logout hoặc rotate token)
-     * @param refreshToken Refresh token cần xóa
-     */
     public void deleteRefreshToken(String refreshToken) {
         // 1. Lấy userId trước khi xóa
         UUID userId = verifyRefreshToken(refreshToken);
@@ -79,9 +65,8 @@ public class RefreshTokenService {
         String tokenKey = REFRESH_TOKEN_KEY_PREFIX + refreshToken;
         redisTemplate.delete(tokenKey);
         
-        // 3. Xóa khỏi Set của user (nếu có)
         if (userId != null) {
-            String userTokensKey = USER_TOKENS_KEY_PREFIX + userId;
+            String userTokensKey = USER_TOKENS_KEY_PREFIX + userId.toString();
             redisTemplate.opsForSet().remove(userTokensKey, refreshToken);
         }
     }
@@ -100,13 +85,10 @@ public class RefreshTokenService {
         Set<String> tokens = redisTemplate.opsForSet().members(userTokensKey);
         
         if (tokens != null && !tokens.isEmpty()) {
-            // Xóa từng token
             tokens.forEach(token -> {
                 String tokenKey = REFRESH_TOKEN_KEY_PREFIX + token;
                 redisTemplate.delete(tokenKey);
             });
-            
-            // Xóa Set của user
             redisTemplate.delete(userTokensKey);
         }
     }
@@ -120,26 +102,19 @@ public class RefreshTokenService {
     public String rotateRefreshToken(String oldRefreshToken, UUID userId) {
         // Xóa token cũ
         deleteRefreshToken(oldRefreshToken);
-        
-        // Tạo và trả về token mới
         return createRefreshToken(userId);
     }
 
-    /**
-     * Gia hạn refresh token (extend TTL)
-     * @param refreshToken Refresh token
-     */
     public void extendRefreshToken(String refreshToken) {
         String tokenKey = REFRESH_TOKEN_KEY_PREFIX + refreshToken;
         long ttlInSeconds = refreshTokenExpirationMs / 1000;
         
-        // Gia hạn token
         redisTemplate.expire(tokenKey, ttlInSeconds, TimeUnit.SECONDS);
         
         // Gia hạn Set của user
         UUID userId = verifyRefreshToken(refreshToken);
         if (userId != null) {
-            String userTokensKey = USER_TOKENS_KEY_PREFIX + userId;
+            String userTokensKey = USER_TOKENS_KEY_PREFIX + userId.toString();
             redisTemplate.expire(userTokensKey, ttlInSeconds, TimeUnit.SECONDS);
         }
     }
@@ -174,4 +149,3 @@ public class RefreshTokenService {
         return count != null && count > 0;
     }
 }
-

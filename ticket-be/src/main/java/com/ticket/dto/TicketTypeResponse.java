@@ -10,9 +10,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * DTO trả về thông tin loại vé
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -37,19 +34,12 @@ public class TicketTypeResponse {
     private String rowLabels;
     private Integer seatsPerRow;
     private Boolean allowSeatSelection;
-    
-    // Display
     private String colorCode;
     private Integer displayOrder;
     private Boolean isActive;
-    
-    // Timestamps
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    /**
-     * Chuyển đổi từ Entity sang DTO
-     */
     public static TicketTypeResponse fromEntity(TicketType ticketType) {
         return TicketTypeResponse.builder()
                 .id(ticketType.getId())
@@ -77,4 +67,3 @@ public class TicketTypeResponse {
                 .build();
     }
 }
-

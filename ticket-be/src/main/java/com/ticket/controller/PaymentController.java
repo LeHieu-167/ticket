@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/payment")
@@ -60,6 +61,7 @@ public class PaymentController {
             }
         } catch (Exception e) {
             log.error("Lỗi tạo thanh toán: {}", e.getMessage());
+            log.error("Lỗi tạo thanh toán: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new MessageResponse("Lỗi hệ thống: " + e.getMessage()));
         }
@@ -77,7 +79,6 @@ public class PaymentController {
         String redirectUrl = frontendUrl; // Default fallback
         
         try {
-            // Lấy tất cả params từ VNPay
             Map<String, String> vnpParams = new HashMap<>();
             request.getParameterMap().forEach((key, values) -> {
                 if (values.length > 0) {
@@ -155,7 +156,6 @@ public class PaymentController {
     @PostMapping("/vnpay-ipn")
     public ResponseEntity<PaymentCallbackResponse> vnpayIPN(HttpServletRequest request) {
         try {
-            // Lấy tất cả params từ VNPay
             Map<String, String> vnpParams = new HashMap<>();
             request.getParameterMap().forEach((key, values) -> {
                 if (values.length > 0) {
@@ -164,9 +164,9 @@ public class PaymentController {
             });
 
             log.info("VNPay IPN - TxnRef: {}, ResponseCode: {}", 
+            log.info("VNPay IPN - TxnRef: {}, ResponseCode: {}", 
                     vnpParams.get("vnp_TxnRef"), vnpParams.get("vnp_ResponseCode"));
 
-            // Xử lý callback
             boolean success = vnPayService.handlePaymentCallback(vnpParams);
             
             if (success) {
@@ -176,14 +176,11 @@ public class PaymentController {
             }
         } catch (Exception e) {
             log.error("Lỗi xử lý VNPay IPN: {}", e.getMessage());
+            log.error("Lỗi xử lý VNPay IPN: {}", e.getMessage());
             return ResponseEntity.ok(PaymentCallbackResponse.error("System error"));
         }
     }
 
-    /**
-     * API kiểm tra trạng thái thanh toán của order
-     * GET /api/payment/status/{orderId}
-     */
     @GetMapping("/status/{orderId}")
     @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<?> checkPaymentStatus(@PathVariable UUID orderId) {
@@ -191,4 +188,3 @@ public class PaymentController {
         return ResponseEntity.ok(new MessageResponse("Coming soon"));
     }
 }
-

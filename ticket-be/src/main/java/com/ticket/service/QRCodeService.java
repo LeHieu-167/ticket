@@ -16,10 +16,8 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.UUID;
 
-/**
- * Service để tạo mã QR Code cho vé điện tử
- */
 @Service
 @Slf4j
 public class QRCodeService {
@@ -28,14 +26,6 @@ public class QRCodeService {
     private static final int DEFAULT_HEIGHT = 250;
     private static final String DEFAULT_FORMAT = "PNG";
 
-    /**
-     * Tạo QR Code dạng byte array
-     *
-     * @param content Nội dung cần encode vào QR
-     * @param width   Chiều rộng QR
-     * @param height  Chiều cao QR
-     * @return byte array của hình ảnh QR
-     */
     public byte[] generateQRCodeImage(String content, int width, int height) {
         try {
             QRCodeWriter qrCodeWriter = new QRCodeWriter();
@@ -53,41 +43,25 @@ public class QRCodeService {
             return outputStream.toByteArray();
         } catch (WriterException | IOException e) {
             log.error("Lỗi tạo QR Code: {}", e.getMessage());
+            log.error("Lỗi tạo QR Code: {}", e.getMessage());
             throw new RuntimeException("Không thể tạo QR Code", e);
         }
     }
 
-    /**
-     * Tạo QR Code với kích thước mặc định
-     */
     public byte[] generateQRCodeImage(String content) {
         return generateQRCodeImage(content, DEFAULT_WIDTH, DEFAULT_HEIGHT);
     }
 
-    /**
-     * Tạo QR Code và trả về Base64 string
-     * Dùng để nhúng trực tiếp vào HTML/JSON
-     *
-     * @param content Nội dung cần encode
-     * @return Base64 encoded string của hình ảnh QR
-     */
     public String generateQRCodeBase64(String content) {
         byte[] qrImage = generateQRCodeImage(content);
         return Base64.getEncoder().encodeToString(qrImage);
     }
 
-    /**
-     * Tạo QR Code Base64 với kích thước tùy chỉnh
-     */
     public String generateQRCodeBase64(String content, int width, int height) {
         byte[] qrImage = generateQRCodeImage(content, width, height);
         return Base64.getEncoder().encodeToString(qrImage);
     }
 
-    /**
-     * Tạo Data URI cho QR Code (dùng trực tiếp trong src của img tag)
-     * Format: data:image/png;base64,{base64_data}
-     */
     public String generateQRCodeDataUri(String content) {
         String base64 = generateQRCodeBase64(content);
         return "data:image/png;base64," + base64;
@@ -125,4 +99,3 @@ public class QRCodeService {
         return String.format("%s/api/tickets/verify/%s", baseUrl, ticketCode);
     }
 }
-

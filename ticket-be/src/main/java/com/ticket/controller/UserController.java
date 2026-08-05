@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api")
@@ -39,10 +40,6 @@ public class UserController {
         return ResponseEntity.ok(users);
     }
 
-    /**
-     * API cho người dùng xem thông tin của chính mình
-     * GET /api/users/me
-     */
     @GetMapping("/users/me")
     @PreAuthorize("hasRole('CUSTOMER') or hasRole('ORGANIZER') or hasRole('ADMIN')")
     public ResponseEntity<UserResponse> getCurrentUser(Authentication authentication) {
@@ -79,6 +76,7 @@ public class UserController {
      */
     @GetMapping("/admin/users/{id}")
     @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserResponse> getUserById(@PathVariable UUID id) {
     public ResponseEntity<UserResponse> getUserById(@PathVariable UUID id) {
         UserResponse user = userService.getUserById(id);
         return ResponseEntity.ok(user);

@@ -23,9 +23,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * Service quản lý vé điện tử
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -64,17 +61,16 @@ public class TicketService {
             throw new RuntimeException("Loại vé '" + request.getName() + "' đã tồn tại trong sự kiện này");
         }
 
-        // Parse seating type
         TicketType.SeatingType seatingType = TicketType.SeatingType.ZONE_ONLY;
         if (request.getSeatingType() != null) {
             try {
                 seatingType = TicketType.SeatingType.valueOf(request.getSeatingType());
             } catch (IllegalArgumentException e) {
                 log.warn("SeatingType không hợp lệ '{}', sử dụng mặc định ZONE_ONLY", request.getSeatingType());
+                log.warn("SeatingType không hợp lệ '{}', sử dụng mặc định ZONE_ONLY", request.getSeatingType());
             }
         }
 
-        // Validate seating configuration
         validateSeatingConfiguration(seatingType, request);
 
         TicketType ticketType = TicketType.builder()
@@ -96,8 +92,6 @@ public class TicketService {
                 .build();
 
         ticketType = ticketTypeRepository.save(ticketType);
-
-        // Cập nhật tổng số vé của sự kiện
         updateEventTotalTickets(event.getId());
 
         log.info("Đã tạo loại vé '{}' (seatingType={}) cho sự kiện '{}'", 
@@ -105,9 +99,6 @@ public class TicketService {
         return TicketTypeResponse.fromEntity(ticketType);
     }
 
-    /**
-     * Validate cấu hình chỗ ngồi dựa trên seatingType
-     */
     private void validateSeatingConfiguration(TicketType.SeatingType seatingType, TicketTypeRequest request) {
         switch (seatingType) {
             case ZONE_WITH_ROW:
@@ -125,7 +116,6 @@ public class TicketService {
                 break;
             case ZONE_ONLY:
             default:
-                // Không cần validate thêm
                 break;
         }
     }
@@ -150,25 +140,19 @@ public class TicketService {
                 .collect(Collectors.toList());
     }
 
-    // ==================== TICKET GENERATION ====================
-
-    /**
-     * Tạo vé sau khi thanh toán thành công
-     * Được gọi từ OrderService hoặc PaymentService
-     */
     @Transactional
+    public List<TicketResponse> generateTicketsForOrder(UUID orderId) {
     public List<TicketResponse> generateTicketsForOrder(UUID orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId));
 
-        // Kiểm tra đơn hàng đã thanh toán chưa
         if (order.getPaymentStatus() != Order.PaymentStatus.PAID) {
             throw new RuntimeException("Đơn hàng chưa được thanh toán");
         }
 
-        // Kiểm tra đã tạo vé chưa
         List<Ticket> existingTickets = ticketRepository.findByOrderId(orderId);
         if (!existingTickets.isEmpty()) {
+            log.warn("Đơn hàng {} đã có vé, trả về vé hiện có", orderId);
             log.warn("Đơn hàng {} đã có vé, trả về vé hiện có", orderId);
             return existingTickets.stream()
                     .map(this::convertToResponse)
@@ -178,8 +162,6 @@ public class TicketService {
         Event event = eventRepository.findById(order.getEventId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện"));
 
-        // Lấy loại vé mặc định (loại đầu tiên có sẵn)
-        // TODO: Trong tương lai, cần lưu ticketTypeId trong Order
         TicketType ticketType = ticketTypeRepository.findAvailableByEventId(event.getId())
                 .stream()
                 .findFirst()
@@ -195,15 +177,13 @@ public class TicketService {
 
         tickets = ticketRepository.saveAll(tickets);
         log.info("Đã tạo {} vé cho đơn hàng {}", tickets.size(), orderId);
+        log.info("Đã tạo {} vé cho đơn hàng {}", tickets.size(), orderId);
 
         return tickets.stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Tạo một vé với thông tin vị trí dựa trên SeatingType
-     */
     private Ticket createTicket(Order order, Event event, TicketType ticketType, int sequenceNumber) {
         String ticketCode = generateTicketCode(event.getId(), order.getId(), sequenceNumber);
         String qrData = qrCodeService.buildTicketQRContent(ticketCode, event.getId(), order.getId());
@@ -218,10 +198,8 @@ public class TicketService {
                 .sequenceNumber(sequenceNumber)
                 .status(Ticket.TicketStatus.ACTIVE);
 
-        // Gán thông tin vị trí dựa trên seatingType
         TicketType.SeatingType seatingType = ticketType.getSeatingType();
         if (seatingType != null && seatingType != TicketType.SeatingType.ZONE_ONLY) {
-            // Tự động gán hàng và ghế nếu không cho phép user chọn
             if (!Boolean.TRUE.equals(ticketType.getAllowSeatSelection())) {
                 SeatAssignment seat = autoAssignSeat(ticketType, sequenceNumber);
                 if (seat != null) {
@@ -236,9 +214,6 @@ public class TicketService {
         return builder.build();
     }
 
-    /**
-     * Tự động gán ghế dựa trên số thứ tự và cấu hình loại vé
-     */
     private SeatAssignment autoAssignSeat(TicketType ticketType, int sequenceNumber) {
         if (ticketType.getRowLabels() == null || ticketType.getRowLabels().isEmpty()) {
             return null;
@@ -252,11 +227,9 @@ public class TicketService {
         SeatAssignment assignment = new SeatAssignment();
 
         if (ticketType.getSeatingType() == TicketType.SeatingType.ZONE_WITH_ROW) {
-            // Chỉ gán hàng, phân bổ đều vào các hàng
             int rowIndex = (sequenceNumber - 1) % rows.length;
             assignment.rowName = rows[rowIndex].trim();
         } else if (ticketType.getSeatingType() == TicketType.SeatingType.FULL_SEAT) {
-            // Gán cả hàng và ghế
             int seatsPerRow = ticketType.getSeatsPerRow() != null ? ticketType.getSeatsPerRow() : 10;
             int rowIndex = (sequenceNumber - 1) / seatsPerRow;
             int seatIndex = (sequenceNumber - 1) % seatsPerRow + 1;
@@ -265,7 +238,6 @@ public class TicketService {
                 assignment.rowName = rows[rowIndex].trim();
                 assignment.seatNumber = String.valueOf(seatIndex);
             } else {
-                // Nếu vượt quá số hàng, quay lại hàng đầu
                 rowIndex = rowIndex % rows.length;
                 assignment.rowName = rows[rowIndex].trim();
                 assignment.seatNumber = String.valueOf(seatIndex);
@@ -275,9 +247,6 @@ public class TicketService {
         return assignment;
     }
 
-    /**
-     * Helper class cho việc gán ghế
-     */
     private static class SeatAssignment {
         String rowName;
         String seatNumber;
@@ -397,7 +366,6 @@ public class TicketService {
             throw new RuntimeException("Mã vé không hợp lệ: " + cleanedCode);
         }
 
-        // Kiểm tra trạng thái vé
         if (ticket.getStatus() == Ticket.TicketStatus.USED) {
             throw new RuntimeException("Vé đã được sử dụng lúc: " + ticket.getCheckedInAt());
         }
@@ -406,7 +374,6 @@ public class TicketService {
             throw new RuntimeException("Vé không hợp lệ. Trạng thái hiện tại: " + ticket.getStatus());
         }
 
-        // Kiểm tra sự kiện đã bắt đầu chưa (cho phép check-in trước 2 giờ)
         LocalDateTime now = LocalDateTime.now();
         Event event = ticket.getEvent();
         LocalDateTime eventDate = event.getEventDate();
@@ -540,12 +507,8 @@ public class TicketService {
         return convertToResponse(ticket);
     }
 
-    // ==================== TICKET CANCELLATION ====================
-
-    /**
-     * Hủy vé
-     */
     @Transactional
+    public TicketResponse cancelTicket(UUID ticketId, String reason) {
     public TicketResponse cancelTicket(UUID ticketId, String reason) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy vé"));
@@ -561,14 +524,13 @@ public class TicketService {
         ticket.setStatus(Ticket.TicketStatus.CANCELLED);
         ticket = ticketRepository.save(ticket);
 
-        // Hoàn lại số lượng vé
         TicketType ticketType = ticket.getTicketType();
         ticketType.increaseAvailableQuantity(1);
         ticketTypeRepository.save(ticketType);
 
-        // Cập nhật tổng số vé sự kiện
         updateEventTotalTickets(ticket.getEvent().getId());
 
+        log.info("Đã hủy vé {} với lý do: {}", ticket.getTicketCode(), reason);
         log.info("Đã hủy vé {} với lý do: {}", ticket.getTicketCode(), reason);
         return convertToResponse(ticket);
     }
@@ -594,11 +556,6 @@ public class TicketService {
                 .build();
     }
 
-    // ==================== HELPER METHODS ====================
-
-    /**
-     * Chuyển đổi Ticket entity sang TicketResponse
-     */
     private TicketResponse convertToResponse(Ticket ticket) {
         String qrCodeBase64 = qrCodeService.generateQRCodeBase64(ticket.getQrData());
         return TicketResponse.fromEntity(ticket, qrCodeBase64);
@@ -618,14 +575,12 @@ public class TicketService {
         }
     }
 
-    /**
-     * Inner class cho thống kê vé
-     */
     @lombok.Data
     @lombok.Builder
     @lombok.NoArgsConstructor
     @lombok.AllArgsConstructor
     public static class TicketStatistics {
+        private UUID eventId;
         private UUID eventId;
         private Integer totalTickets;
         private Integer soldTickets;
@@ -634,4 +589,3 @@ public class TicketService {
         private Integer checkedInTickets;
     }
 }
-

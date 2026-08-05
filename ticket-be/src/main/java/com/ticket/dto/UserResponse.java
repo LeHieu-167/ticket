@@ -46,4 +46,3 @@ public class UserResponse {
         return response;
     }
 }
-

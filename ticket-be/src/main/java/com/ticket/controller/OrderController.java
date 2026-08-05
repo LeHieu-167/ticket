@@ -60,6 +60,7 @@ public class OrderController {
             // 1. Lấy customerId từ JWT token (QUAN TRỌNG - không tin client!)
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
             UUID customerId = userDetails.getId();
+            UUID customerId = userDetails.getId();
             orderRequest.setCustomerId(customerId);
 
             String requestId = orderRequest.getRequestId();
@@ -178,22 +179,21 @@ public class OrderController {
     public ResponseEntity<List<OrderResponse>> getMyOrders(Authentication authentication) {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         UUID customerId = userDetails.getId();
+        UUID customerId = userDetails.getId();
 
         List<OrderResponse> orders = orderService.getMyOrders(customerId);
         return ResponseEntity.ok(orders);
     }
 
-    /**
-     * API xem chi tiết một đơn hàng (CUSTOMER)
-     * GET /api/orders/{id}
-     */
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<?> getOrderById(
             @PathVariable UUID id,
+            @PathVariable UUID id,
             Authentication authentication) {
         try {
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            UUID customerId = userDetails.getId();
             UUID customerId = userDetails.getId();
 
             OrderResponse order = orderService.getOrderById(id, customerId);
@@ -204,10 +204,6 @@ public class OrderController {
         }
     }
 
-    /**
-     * API admin xem tất cả đơn hàng
-     * GET /api/orders/admin/all
-     */
     @GetMapping("/admin/all")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<OrderResponse>> getAllOrders() {
@@ -215,12 +211,9 @@ public class OrderController {
         return ResponseEntity.ok(orders);
     }
 
-    /**
-     * API xem đơn hàng theo Event (ORGANIZER hoặc ADMIN)
-     * GET /api/orders/event/{eventId}
-     */
     @GetMapping("/event/{eventId}")
     @PreAuthorize("hasRole('ORGANIZER') or hasRole('ADMIN')")
+    public ResponseEntity<List<OrderResponse>> getOrdersByEventId(@PathVariable UUID eventId) {
     public ResponseEntity<List<OrderResponse>> getOrdersByEventId(@PathVariable UUID eventId) {
         List<OrderResponse> orders = orderService.getOrdersByEventId(eventId);
         return ResponseEntity.ok(orders);
@@ -308,4 +301,3 @@ public class OrderController {
         return ResponseEntity.ok().build();
     }
 }
-

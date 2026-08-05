@@ -16,7 +16,9 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 @Entity
-@Table(name = "events")
+@Table(name = "events", indexes = {
+    @Index(name = "idx_event_slug", columnList = "slug", unique = true)
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -43,37 +45,21 @@ public class Event {
     @Column(nullable = false)
     private String location;
 
-    /**
-     * Địa chỉ chi tiết của sự kiện
-     */
     @Column(name = "address", columnDefinition = "TEXT")
     private String address;
 
     @Column(name = "event_date", nullable = false)
     private LocalDateTime eventDate;
 
-    /**
-     * Thời gian kết thúc sự kiện
-     */
     @Column(name = "event_end_date")
     private LocalDateTime eventEndDate;
 
-    /**
-     * Giá vé mặc định (giữ lại để backward compatible)
-     * Nên sử dụng TicketType để quản lý giá theo loại vé
-     */
     @Column(name = "ticket_price", nullable = false)
     private BigDecimal ticketPrice;
 
-    /**
-     * Tổng số vé còn lại (tổng hợp từ tất cả TicketType)
-     */
     @Column(name = "available_tickets", nullable = false)
     private Integer availableTickets;
 
-    /**
-     * Tổng số vé ban đầu
-     */
     @Column(name = "total_tickets")
     private Integer totalTickets;
 
@@ -93,22 +79,14 @@ public class Event {
 
     @Column(name = "organizer_id", nullable = false)
     private UUID organizerId;
+    private UUID organizerId;
 
-    /**
-     * Tên đơn vị tổ chức
-     */
     @Column(name = "organizer_name", length = 200)
     private String organizerName;
 
-    /**
-     * URL hình ảnh banner sự kiện
-     */
     @Column(name = "banner_image_url", length = 500)
     private String bannerImageUrl;
 
-    /**
-     * URL hình ảnh thumbnail
-     */
     @Column(name = "thumbnail_url", length = 500)
     private String thumbnailUrl;
 
@@ -229,17 +207,11 @@ public class Event {
         ticketType.setEvent(this);
     }
 
-    /**
-     * Xóa loại vé khỏi sự kiện
-     */
     public void removeTicketType(TicketType ticketType) {
         ticketTypes.remove(ticketType);
         ticketType.setEvent(null);
     }
 
-    /**
-     * Tính tổng số vé còn lại từ tất cả loại vé
-     */
     public int calculateTotalAvailableTickets() {
         return ticketTypes.stream()
                 .filter(TicketType::getIsActive)
@@ -247,4 +219,3 @@ public class Event {
                 .sum();
     }
 }
-

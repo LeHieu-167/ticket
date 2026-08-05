@@ -55,6 +55,7 @@ public class EventResponse {
     public static EventResponse fromEntity(Event event) {
         EventResponse response = new EventResponse();
         response.setId(event.getId());
+        response.setSlug(event.getSlug());
         response.setName(event.getName());
         response.setSlug(event.getSlug());
         response.setDescription(event.getDescription());
@@ -96,4 +97,3 @@ public class EventResponse {
         return response;
     }
 }
-
