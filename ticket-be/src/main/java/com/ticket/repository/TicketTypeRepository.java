@@ -31,14 +31,11 @@ public interface TicketTypeRepository extends JpaRepository<TicketType, Long> {
 
     @Query("SELECT tt FROM TicketType tt WHERE tt.event.id = :eventId AND tt.isActive = true AND tt.availableQuantity > 0 ORDER BY tt.displayOrder")
     List<TicketType> findAvailableByEventId(@Param("eventId") UUID eventId);
-    List<TicketType> findAvailableByEventId(@Param("eventId") UUID eventId);
 
     @Query("SELECT COALESCE(SUM(tt.availableQuantity), 0) FROM TicketType tt WHERE tt.event.id = :eventId AND tt.isActive = true")
     Integer sumAvailableQuantityByEventId(@Param("eventId") UUID eventId);
-    Integer sumAvailableQuantityByEventId(@Param("eventId") UUID eventId);
 
     @Query("SELECT COALESCE(SUM(tt.totalQuantity), 0) FROM TicketType tt WHERE tt.event.id = :eventId")
-    Integer sumTotalQuantityByEventId(@Param("eventId") UUID eventId);
     Integer sumTotalQuantityByEventId(@Param("eventId") UUID eventId);
 
     /**

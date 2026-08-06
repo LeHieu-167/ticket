@@ -14,7 +14,6 @@ import java.util.UUID;
 
 @Repository
 public interface TicketRepository extends JpaRepository<Ticket, UUID> {
-public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 
     /**
      * Tìm vé theo mã vé (ticket code) - exact match
@@ -44,10 +43,8 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 
     @Query("SELECT t FROM Ticket t JOIN t.order o WHERE o.customerId = :customerId")
     List<Ticket> findByCustomerId(@Param("customerId") UUID customerId);
-    List<Ticket> findByCustomerId(@Param("customerId") UUID customerId);
 
     @Query("SELECT t FROM Ticket t JOIN t.order o WHERE o.customerId = :customerId AND t.event.id = :eventId")
-    List<Ticket> findByCustomerIdAndEventId(@Param("customerId") UUID customerId, @Param("eventId") UUID eventId);
     List<Ticket> findByCustomerIdAndEventId(@Param("customerId") UUID customerId, @Param("eventId") UUID eventId);
 
     List<Ticket> findByStatus(Ticket.TicketStatus status);
@@ -59,10 +56,8 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 
     @Query("SELECT COUNT(t) FROM Ticket t WHERE t.event.id = :eventId AND t.status = 'USED'")
     Long countCheckedInByEventId(@Param("eventId") UUID eventId);
-    Long countCheckedInByEventId(@Param("eventId") UUID eventId);
 
     @Query("SELECT COUNT(t) FROM Ticket t WHERE t.event.id = :eventId AND t.status = 'ACTIVE'")
-    Long countActiveByEventId(@Param("eventId") UUID eventId);
     Long countActiveByEventId(@Param("eventId") UUID eventId);
 
     List<Ticket> findByTicketTypeId(Long ticketTypeId);
@@ -71,14 +66,11 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 
     @Query("SELECT t FROM Ticket t WHERE t.event.id = :eventId AND t.zoneName = :zoneName AND t.rowName = :rowName AND t.seatNumber = :seatNumber AND t.status NOT IN ('CANCELLED', 'REFUNDED')")
     Optional<Ticket> findBySeatInEvent(@Param("eventId") UUID eventId, @Param("zoneName") String zoneName, @Param("rowName") String rowName, @Param("seatNumber") String seatNumber);
-    Optional<Ticket> findBySeatInEvent(@Param("eventId") UUID eventId, @Param("zoneName") String zoneName, @Param("rowName") String rowName, @Param("seatNumber") String seatNumber);
 
     @Query("SELECT t FROM Ticket t WHERE t.event.id = :eventId AND t.zoneName = :zoneName AND t.status NOT IN ('CANCELLED', 'REFUNDED')")
     List<Ticket> findSoldSeatsInZone(@Param("eventId") UUID eventId, @Param("zoneName") String zoneName);
-    List<Ticket> findSoldSeatsInZone(@Param("eventId") UUID eventId, @Param("zoneName") String zoneName);
 
     @Query("SELECT t FROM Ticket t WHERE t.event.id = :eventId AND t.zoneName = :zoneName AND t.rowName = :rowName AND t.status NOT IN ('CANCELLED', 'REFUNDED')")
-    List<Ticket> findByZoneAndRow(@Param("eventId") UUID eventId, @Param("zoneName") String zoneName, @Param("rowName") String rowName);
     List<Ticket> findByZoneAndRow(@Param("eventId") UUID eventId, @Param("zoneName") String zoneName, @Param("rowName") String rowName);
 
     @Query("SELECT COUNT(t) FROM Ticket t WHERE t.ticketType.id = :ticketTypeId AND t.status NOT IN ('CANCELLED', 'REFUNDED')")

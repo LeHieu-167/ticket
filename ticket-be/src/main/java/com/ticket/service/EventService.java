@@ -273,7 +273,6 @@ public class EventService {
 
     @Transactional(readOnly = true)
     public EventResponse getEventById(UUID eventId) {
-    public EventResponse getEventById(UUID eventId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện với ID: " + eventId));
         

@@ -21,7 +21,6 @@ public class NotificationMessage {
     private String severity;
 
     public static NotificationMessage orderProcessed(UUID orderId, String status, String message) {
-    public static NotificationMessage orderProcessed(UUID orderId, String status, String message) {
         NotificationMessage notification = new NotificationMessage();
         notification.setType("ORDER");
         notification.setTitle("Cập nhật đơn hàng");
@@ -33,7 +32,6 @@ public class NotificationMessage {
     }
 
     public static NotificationMessage paymentCompleted(UUID orderId, boolean success, String message) {
-    public static NotificationMessage paymentCompleted(UUID orderId, boolean success, String message) {
         NotificationMessage notification = new NotificationMessage();
         notification.setType("PAYMENT");
         notification.setTitle(success ? "Thanh toán thành công" : "Thanh toán thất bại");
@@ -44,7 +42,6 @@ public class NotificationMessage {
         return notification;
     }
 
-    public static NotificationMessage eventUpdate(UUID eventId, String title, String message) {
     public static NotificationMessage eventUpdate(UUID eventId, String title, String message) {
         NotificationMessage notification = new NotificationMessage();
         notification.setType("EVENT");

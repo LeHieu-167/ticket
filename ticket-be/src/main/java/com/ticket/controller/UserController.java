@@ -77,7 +77,7 @@ public class UserController {
     @GetMapping("/admin/users/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserResponse> getUserById(@PathVariable UUID id) {
-    public ResponseEntity<UserResponse> getUserById(@PathVariable UUID id) {
+
         UserResponse user = userService.getUserById(id);
         return ResponseEntity.ok(user);
     }

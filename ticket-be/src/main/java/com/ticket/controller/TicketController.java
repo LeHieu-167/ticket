@@ -2,7 +2,6 @@ package com.ticket.controller;
 
 import com.ticket.dto.*;
 import com.ticket.security.UserDetailsImpl;
-import com.ticket.security.UserDetailsImpl;
 import com.ticket.service.QRCodeService;
 import com.ticket.service.TicketService;
 import jakarta.validation.Valid;
@@ -14,10 +13,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.UUID;
 
 @RestController
@@ -58,14 +57,14 @@ public class TicketController {
 
     @GetMapping("/types/event/{eventId}")
     public ResponseEntity<List<TicketTypeResponse>> getTicketTypesByEvent(@PathVariable UUID eventId) {
-    public ResponseEntity<List<TicketTypeResponse>> getTicketTypesByEvent(@PathVariable UUID eventId) {
+
         List<TicketTypeResponse> ticketTypes = ticketService.getTicketTypesByEvent(eventId);
         return ResponseEntity.ok(ticketTypes);
     }
 
     @GetMapping("/types/event/{eventId}/available")
     public ResponseEntity<List<TicketTypeResponse>> getAvailableTicketTypes(@PathVariable UUID eventId) {
-    public ResponseEntity<List<TicketTypeResponse>> getAvailableTicketTypes(@PathVariable UUID eventId) {
+
         List<TicketTypeResponse> ticketTypes = ticketService.getAvailableTicketTypes(eventId);
         return ResponseEntity.ok(ticketTypes);
     }
@@ -80,7 +79,6 @@ public class TicketController {
 
     @GetMapping("/{ticketId}")
     public ResponseEntity<TicketResponse> getTicketById(@PathVariable UUID ticketId) {
-    public ResponseEntity<TicketResponse> getTicketById(@PathVariable UUID ticketId) {
         TicketResponse ticket = ticketService.getTicketById(ticketId);
         return ResponseEntity.ok(ticket);
     }
@@ -93,7 +91,7 @@ public class TicketController {
 
     @GetMapping("/order/{orderId}")
     public ResponseEntity<List<TicketResponse>> getTicketsByOrder(@PathVariable UUID orderId) {
-    public ResponseEntity<List<TicketResponse>> getTicketsByOrder(@PathVariable UUID orderId) {
+
         List<TicketResponse> tickets = ticketService.getTicketsByOrder(orderId);
         return ResponseEntity.ok(tickets);
     }
@@ -210,7 +208,6 @@ public class TicketController {
     @PostMapping("/{ticketId}/cancel")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<TicketResponse> cancelTicket(
-            @PathVariable UUID ticketId,
             @PathVariable UUID ticketId,
             @RequestParam(required = false, defaultValue = "Yêu cầu hủy từ admin") String reason) {
         log.info("Hủy vé {} với lý do: {}", ticketId, reason);

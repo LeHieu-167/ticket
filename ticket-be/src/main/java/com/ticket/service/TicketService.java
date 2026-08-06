@@ -67,7 +67,6 @@ public class TicketService {
                 seatingType = TicketType.SeatingType.valueOf(request.getSeatingType());
             } catch (IllegalArgumentException e) {
                 log.warn("SeatingType không hợp lệ '{}', sử dụng mặc định ZONE_ONLY", request.getSeatingType());
-                log.warn("SeatingType không hợp lệ '{}', sử dụng mặc định ZONE_ONLY", request.getSeatingType());
             }
         }
 
@@ -141,7 +140,6 @@ public class TicketService {
     }
 
     @Transactional
-    public List<TicketResponse> generateTicketsForOrder(UUID orderId) {
     public List<TicketResponse> generateTicketsForOrder(UUID orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId));
@@ -509,7 +507,6 @@ public class TicketService {
 
     @Transactional
     public TicketResponse cancelTicket(UUID ticketId, String reason) {
-    public TicketResponse cancelTicket(UUID ticketId, String reason) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy vé"));
 
@@ -580,7 +577,6 @@ public class TicketService {
     @lombok.NoArgsConstructor
     @lombok.AllArgsConstructor
     public static class TicketStatistics {
-        private UUID eventId;
         private UUID eventId;
         private Integer totalTickets;
         private Integer soldTickets;

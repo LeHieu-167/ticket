@@ -79,7 +79,6 @@ public class Event {
 
     @Column(name = "organizer_id", nullable = false)
     private UUID organizerId;
-    private UUID organizerId;
 
     @Column(name = "organizer_name", length = 200)
     private String organizerName;

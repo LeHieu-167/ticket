@@ -52,7 +52,6 @@ public class RefreshTokenService {
         
         if (userId != null) {
             return UUID.fromString(userId);
-            return UUID.fromString(userId);
         }
         return null;
     }

@@ -45,7 +45,6 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public List<OrderResponse> getMyOrders(UUID customerId) {
-    public List<OrderResponse> getMyOrders(UUID customerId) {
         List<Order> orders = orderRepository.findByCustomerId(customerId);
         return orders.stream()
                 .map(OrderResponse::fromEntity)
@@ -53,7 +52,6 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public OrderResponse getOrderById(UUID orderId, UUID customerId) {
     public OrderResponse getOrderById(UUID orderId, UUID customerId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId));
@@ -72,7 +70,6 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public List<OrderResponse> getOrdersByEventId(UUID eventId) {
     public List<OrderResponse> getOrdersByEventId(UUID eventId) {
         List<Order> orders = orderRepository.findByEventId(eventId);
         return orders.stream()
