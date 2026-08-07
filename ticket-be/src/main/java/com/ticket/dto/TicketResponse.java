@@ -19,7 +19,6 @@ import java.util.UUID;
 public class TicketResponse {
 
     private UUID id;
-    private UUID id;
     private String ticketCode;
     private String qrCodeBase64;
     private String qrCodeDataUri;

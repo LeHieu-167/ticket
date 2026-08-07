@@ -163,8 +163,7 @@ public class PaymentController {
                 }
             });
 
-            log.info("VNPay IPN - TxnRef: {}, ResponseCode: {}", 
-            log.info("VNPay IPN - TxnRef: {}, ResponseCode: {}", 
+            log.info("VNPay IPN - TxnRef: {}, ResponseCode: {}",
                     vnpParams.get("vnp_TxnRef"), vnpParams.get("vnp_ResponseCode"));
 
             boolean success = vnPayService.handlePaymentCallback(vnpParams);
@@ -175,7 +174,6 @@ public class PaymentController {
                 return ResponseEntity.ok(PaymentCallbackResponse.error("Invalid signature"));
             }
         } catch (Exception e) {
-            log.error("Lỗi xử lý VNPay IPN: {}", e.getMessage());
             log.error("Lỗi xử lý VNPay IPN: {}", e.getMessage());
             return ResponseEntity.ok(PaymentCallbackResponse.error("System error"));
         }

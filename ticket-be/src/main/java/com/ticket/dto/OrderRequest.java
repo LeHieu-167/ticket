@@ -30,7 +30,6 @@ public class OrderRequest implements Serializable {
     
     @NotNull(message = "ID sự kiện không được để trống")
     private UUID eventId;
-    private UUID eventId;
 
     @NotNull(message = "Số lượng vé không được để trống")
     @Min(value = 1, message = "Số lượng vé phải ít nhất là 1")
